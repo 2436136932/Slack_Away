@@ -101,7 +101,7 @@
 
   /* ============ 游戏工厂 ============ */
   function factory() {
-    let root, ctx = null, diff = 'medium';
+    let root, ctx = null, diff = 'medium', mode = 'local';
     let wall = [], players = [], turnIdx = 0, banker = 0;
     let phase = 'idle';          // idle | turn | claim | over
     let drawn = null;            // 刚摸到的牌 { seat, tile }
@@ -295,7 +295,7 @@
       for (const t of p.concealed) c[t]++;
       const scored = [];
       p.concealed.forEach((t, i) => {
-        if (t === LAIZI) { scored.push({ i, s: 1e9 }); return; }   // 绝不打赖子
+        if (t === LAIZI) { scored.push({ i, s: -1e9 }); return; }  // 赖子=万能牌，分数最低=最不舍得打
         let s = 0;
         s -= c[t] * 10;                       // 同张越多越不舍得
         const r = t % 9;
@@ -324,6 +324,30 @@
       return (trips + pairs + lz) >= 2 || p.melds.length >= 1;
     }
 
+    /** 大模型模式：让 LLM 决定 AI 出哪张（失败/解析不出回退本地启发式） */
+    function recentDiscards(n) {
+      const arr = [];
+      for (let s2 = 0; s2 < 4; s2++) for (const t of players[s2].discards) arr.push(tileLabel(t));
+      return arr.slice(-(n || 10)).join(' ') || '无';
+    }
+
+    async function llmChooseDiscard(p) {
+      const hand = p.concealed.map(tileLabel).join(' ');
+      const meldStr = p.melds.length
+        ? p.melds.map(m => (m.type === 'gang' ? '杠' : '碰') + tileLabel(m.tile)).join('，')
+        : '无';
+      const text = await ctx.llm([
+        { role: 'system', content: '你是红中麻将高手。规则：牌只有万/条/筒(各1-9)和红中；红中是赖子百搭，绝不能打出去；没有吃，只能碰杠；胡型=4副(顺子或刻子)+1对将。策略：优先保留对子、刻子、同花色连张，拆孤张，快听牌时留安全牌。' },
+        { role: 'user', content: `你的手牌：${hand}\n已副露：${meldStr}\n最近各家出牌：${recentDiscards()}\n牌墙剩余：${wall.length} 张\n只输出一张你要打出的牌名（例如：5条），不要任何解释。` },
+      ], { temperature: 0.3, maxTokens: 20 });
+      // 解析：在回复里找一张真实存在于手牌的牌（绝不允许打赖子）
+      for (const t of p.concealed) {
+        if (t === LAIZI) continue;
+        if (text.indexOf(tileLabel(t)) >= 0) return p.concealed.indexOf(t);
+      }
+      return -1;
+    }
+
     function botDiscard(p) {
       if (phase !== 'turn' || turnIdx !== p.seat) return;
       // 暗杠：手里有 4 张真牌
@@ -340,6 +364,18 @@
             return;
           }
         }
+      }
+      // 大模型模式：AI 出牌走 LLM（未配置/失败/解析不出 → 回退本地启发式）
+      if (mode === 'llm' && p.bot && ctx.llm) {
+        ctx.setStatus(`${SEAT_NAME[p.seat]}思考中…`);
+        llmChooseDiscard(p).then(idx => {
+          if (phase !== 'turn' || turnIdx !== p.seat) return;
+          doDiscard(p, idx >= 0 ? idx : chooseDiscard(p));
+        }).catch(() => {
+          if (phase !== 'turn' || turnIdx !== p.seat) return;
+          doDiscard(p, chooseDiscard(p));
+        });
+        return;
       }
       doDiscard(p, chooseDiscard(p));
     }
@@ -455,6 +491,7 @@
           hands: players.map(p => p.concealed.length),
           melds: players.map(p => p.melds.length),
           pool: players.reduce((n, p) => n + p.discards.length, 0),
+          poolLaizi: players.reduce((n, p) => n + p.discards.filter(t => t === LAIZI).length, 0),
           canDiscard: phase === 'turn' && turnIdx === 0,
           pending: pending ? pending.type : '',
         });
@@ -482,6 +519,7 @@
         try { delete window.__mjDiscard; } catch (e) { window.__mjDiscard = null; }
         try { delete window.__mjClaim; } catch (e) { window.__mjClaim = null; }
       },
+      onModeChange(m) { mode = m; },
       // 注意：activateGame 每次切游戏都会调一次 onDiffChange，
       // 这里绝不能重开回合（会多发一张牌破坏张数守恒），只在难度真变了才重开一局
       onDiffChange(d) {
@@ -508,6 +546,6 @@
     name: '红中麻将',
     icon: '🀄',
     factory,
-    flags: { hasAI: true, llm: false },   // 3 个本地 AI；大模型打牌没意义 → 由 app 隐藏模式切换与 ⚙
+    flags: { hasAI: true },   // 3 个 AI 对手；大模型模式下 AI 出牌走 LLM
   });
 })();

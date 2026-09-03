@@ -56,7 +56,7 @@ const claim = (y) => sandbox.window.__mjClaim(y);
 
 /* ---------- 跑 N 局 ---------- */
 const GAMES = Number(process.argv[2]) || 20;
-let huCount = 0, drewCount = 0, errors = 0;
+let huCount = 0, drewCount = 0, errors = 0, laiziThrown = 0;
 const huBySeat = [0, 0, 0, 0];
 
 for (let g = 1; g <= GAMES; g++) {
@@ -70,7 +70,8 @@ for (let g = 1; g <= GAMES; g++) {
     }
     if (last.winner >= 0) { huCount++; huBySeat[last.winner]++; }
     else drewCount++;
-    console.log(`第${g}局 steps=${steps} 胡家=${last.winner} 牌墙剩=${last.wall} 副露=${JSON.stringify(last.melds)}`);
+    if (last.poolLaizi > 0) laiziThrown += last.poolLaizi;
+    console.log(`第${g}局 steps=${steps} 胡家=${last.winner} 牌墙剩=${last.wall} 副露=${JSON.stringify(last.melds)} 牌河红中=${last.poolLaizi}`);
     // 开下一局
     if (g < GAMES) sandbox.window.__mjNewGame && sandbox.window.__mjNewGame();
   } catch (e) {
@@ -79,6 +80,6 @@ for (let g = 1; g <= GAMES; g++) {
     break;
   }
 }
-console.log(`\n结果: ${GAMES} 局 → 胡 ${huCount} / 流局 ${drewCount} / 出错 ${errors}`);
+console.log(`\n结果: ${GAMES} 局 → 胡 ${huCount} / 流局 ${drewCount} / 出错 ${errors} / 牌河红中 ${laiziThrown}（应为 0）`);
 console.log(`胡家分布 [你/下家/对面/上家]: ${JSON.stringify(huBySeat)}`);
 process.exit(errors ? 1 : 0);

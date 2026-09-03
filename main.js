@@ -330,6 +330,49 @@ function createWindow() {
                 await new Promise(r => setTimeout(r, 300));
               }
               console.log(`[SMOKE] 麻将 3 局结果: 胡家=${JSON.stringify(huSeats)} 流局 ${drew} 次`);
+
+              // LLM 模式验证：备份原配置 → 填 mock → 切大模型模式 → 打一段对局 → 恢复
+              const envUrl = process.env.GLASS_SMOKE_LLM_URL || '';
+              const envKey = process.env.GLASS_SMOKE_LLM_KEY || '';
+              if (envUrl && envKey) {
+                const orig = await win.webContents.executeJavaScript(`(function () {
+                  var $ = function (id) { return document.getElementById(id); };
+                  $('llmPanel').classList.add('show');
+                  return JSON.stringify({ url: $('llmUrl').value, key: $('llmKey').value, model: $('llmModel').value });
+                })()`);
+                await win.webContents.executeJavaScript(`(function () {
+                  var env = { url: ${JSON.stringify(envUrl)}, key: ${JSON.stringify(envKey)} };
+                  var $ = function (id) { return document.getElementById(id); };
+                  $('llmPanel').classList.add('show');
+                  $('llmUrl').value = env.url; $('llmKey').value = env.key; $('llmModel').value = 'mock';
+                  $('llmSave').click();
+                  var b = document.querySelector('#modeSeg button[data-mode="llm"]');
+                  if (b) b.click();
+                  return 1;
+                })()`);
+                await new Promise(r => setTimeout(r, 300));
+                let ls = 0, ll = null;
+                for (; ls < 120; ls++) {
+                  ll = JSON.parse(await win.webContents.executeJavaScript(
+                    "JSON.stringify(window.__smokeState())"));
+                  if (ll.phase === 'over') break;
+                  if (ll.canDiscard) await win.webContents.executeJavaScript("window.__mjPlayAsBot()");
+                  else if (ll.pending) await win.webContents.executeJavaScript("window.__mjClaim(true)");
+                  await new Promise(r => setTimeout(r, 60));
+                }
+                console.log(`[SMOKE] 麻将 LLM模式 ${ls} 步: phase=${ll.phase} 胡家=${ll.winner} 牌河=${ll.pool}`);
+                // 恢复原配置 + 切回本地模式
+                await win.webContents.executeJavaScript(`(function () {
+                  var o = ${orig};
+                  var $ = function (id) { return document.getElementById(id); };
+                  $('llmPanel').classList.add('show');
+                  $('llmUrl').value = o.url; $('llmKey').value = o.key; $('llmModel').value = o.model;
+                  $('llmSave').click();
+                  var b = document.querySelector('#modeSeg button[data-mode="local"]');
+                  if (b) b.click();
+                  return 1;
+                })()`);
+              }
               // 悔棋：收回最后打出的一张
               await win.webContents.executeJavaScript("window.__mjDiscard(0)");
               await new Promise(r => setTimeout(r, 200));
