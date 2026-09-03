@@ -184,111 +184,67 @@
       phase = 'turn';
       render();
       if (p.bot) setTimeout(() => botDiscard(p), 420);
-      else ctx.setStatus(mustDraw ? '你摸了一张，点手牌打出去' : '轮到你出牌，点一张打出去');
-    }
-
-    function doDiscard(p, idx, fromEl) {
-      if (phase !== 'turn') return;
-      phase = 'discarding';            // 出牌锁：防止 240ms 空窗内重复出牌（快速连点/脚本轮询）
-      const t = p.concealed.splice(idx, 1)[0];
-      p.discards.push(t);
-      drawn = null;
-      if (!p.bot) sortHand(p);
-      render();
-      flyTile(t, fromEl || (p.bot ? oppElFor(p.seat) : null));
-      setTimeout(() => checkClaims(p.seat, t), 240);
-    }
-
-    /** 出牌后：按 杠 > 碰 询问各家（合肥红中规则：只允许自摸胡，点炮不能胡） */
-    function checkClaims(fromSeat, tile) {
-      claimTile = tile; claimFrom = fromSeat;
-      const order = [1, 2, 3].map(k => (fromSeat + k) % 4);
-
-      // 杠 / 碰（赖子不可碰杠）
-      const opts = [];
-      if (tile !== LAIZI) {
-        for (const s of order) {
-          const n = countOf(players[s].concealed, tile);
-          if (n >= 3) opts.push({ seat: s, type: 'gang' });
-          else if (n >= 2) opts.push({ seat: s, type: 'peng' });
+      else {
+        // 暗杠：回合开始、非刚玩成副露时，手牌有 4 张同真牌可暗杠
+        const g4 = findQuad(p);
+        if (g4 >= 0) ctx.setStatus(g4 === LAIZI ? '手牌里有 4 张红中！可以暗杠' : `手牌有 4 张${tileLabel(g4)}！可以暗杠`);
+        else {
+          const t = listTenpai(players[0]);
+          ctx.setStatus(t.length
+            ? `你听牌！可胡 ${t.map(x => tileLabel(x.t)).join(' ')} 共 ${t.reduce((n, x) => n + x.n, 0)} 张`
+            : '轮到你了，点一张打出去');
         }
       }
-      opts.sort((a, b) => (a.type === 'gang' ? 0 : 1) - (b.type === 'gang' ? 0 : 1));
-      claimQueue = opts;
-      processClaimQueue();
     }
 
-    function processClaimQueue() {
-      while (claimQueue.length) {
-        const o = claimQueue.shift();
-        if (o.seat === 0) {
-          phase = 'claim';
-          pending = { tile: claimTile, from: claimFrom, type: o.type };
-          render();
-          ctx.setStatus(`可以「${o.type === 'gang' ? '杠' : '碰'}」${tileLabel(claimTile)}，要吗？`);
-          return;
-        }
-        if (botWantsClaim(players[o.seat], claimTile, o.type)) {
-          return applyMeld(players[o.seat], claimTile, o.type, claimFrom);
-        }
-      }
-      nextTurn(claimFrom);
+    /** 手牌里是否有 4 张同真牌（暗杠候选），返回牌，没有返回 -1 */
+    function findQuad(p) {
+      const { c } = countTiles(p.concealed);
+      for (let i = 0; i < 27; i++) if (c[i] >= 4) return i;
+      return -1;
     }
 
-    function applyMeld(p, tile, type, fromSeat) {
-      const from = players[fromSeat];
-      if (from.discards.length) from.discards.pop();     // 从牌河拿走
-      const n = type === 'gang' ? 3 : 2;
-      for (let i = 0; i < n; i++) {
-        const idx = p.concealed.indexOf(tile);
-        if (idx >= 0) p.concealed.splice(idx, 1);
-      }
-      p.melds.push({ type, tile, from: fromSeat });
-      turnIdx = p.seat;
-      pending = null;
-      // 碰/杠 toast（谁碰了什么，一眼可见）
-      showToast(`${SEAT_NAME[p.seat]}${type === 'gang' ? '杠' : '碰'} ${tileLabel(tile)}`);
 
-      if (type === 'gang' && wall.length) {
+    /** 暗杠：从手牌拿出 4 张同真牌入副露，摸一张 */
+    function doAnGang(tile) {
+      if (phase !== 'turn' || turnIdx !== 0) return;
+      const p = players[0];
+      const quad = [];
+      p.concealed.forEach((x, i) => { if (x === tile) quad.push(i); });
+      if (quad.length < 4) return;
+      for (let i = quad.length - 1; i >= 0; i--) p.concealed.splice(quad[i], 1);
+      p.melds.push({ type: 'gang', tile, from: 0, dark: true });
+      showToast(`你暗杠 ${tileLabel(tile)}`);
+      if (wall.length) {
         const t = wall.pop();
         p.concealed.push(t);
-        drawn = { seat: p.seat, tile: t };
-        if (!p.bot) sortHand(p);
-        if (isWin(p)) return endGame(p.seat, t, true);   // 杠上开花
+        drawn = { seat: 0, tile: t };
+        sortHand(p);
+        if (isWin(p)) return endGame(0, t, true);   // 杠上开花
       }
       phase = 'turn';
       render();
-      if (p.bot) setTimeout(() => botDiscard(p), 420);
-      else ctx.setStatus('点一张牌打出去');
+      ctx.setStatus('你杠了，摸了一张，点一张打出去');
     }
 
-    function humanClaim(yes) {
-      if (phase !== 'claim' || !pending) return;
-      const p = players[0], o = pending;
-      pending = null;
-      if (yes) {
-        applyMeld(p, o.tile, o.type, o.from);
-      } else {
-        phase = 'turn';
-        processClaimQueue();     // 继续问后面的 AI
+    /** 补杠：之前碰过的牌，手里又摸到第 4 张 */
+    function doBuGang(m) {
+      const p = players[0];
+      const idx = p.concealed.indexOf(m.tile);
+      if (idx < 0) return;
+      p.concealed.splice(idx, 1);
+      m.bugang = true;
+      showToast(`你补杠 ${tileLabel(m.tile)}`);
+      if (wall.length) {
+        const t = wall.pop();
+        p.concealed.push(t);
+        drawn = { seat: 0, tile: t };
+        sortHand(p);
+        if (isWin(p)) return endGame(0, t, true);
       }
-    }
-
-    function nextTurn(fromSeat) {
-      turnIdx = (fromSeat + 1) % 4;
-      beginTurn(true);
-    }
-
-    function endGame(seat, tile, self) {
-      phase = 'over'; winner = seat; winTile = tile == null ? -1 : tile; selfDrawWin = !!self;
+      phase = 'turn';
       render();
-      if (seat === -1) ctx.setStatus('流局了（牌墙摸完），点新局再来');
-      else {
-        showHuView(seat, tile, self);      // 胡牌定格：摊牌 + 番型
-        if (seat === 0) ctx.setStatus(self ? '自摸！你胡了（低调收好）' : '你胡了！（低调收好）');
-        else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？`);
-      }
-      if (ctx.onGameEnd) ctx.onGameEnd(seat === 0 ? 'player' : 'ai');
+      ctx.setStatus('你补杠了，摸了一张，点一张打出去');
     }
 
     /* ---------- AI ---------- */
@@ -511,6 +467,30 @@
       });
       // 操作按钮（优先级：胡 > 杠 > 碰 > 过；碰/杠可用时都能点）
       els.actions.innerHTML = '';
+      // 暗杠：玩家回合内、手牌有 4 张同真牌
+      if (phase === 'turn' && turnIdx === 0) {
+        const g4 = findQuad(players[0]);
+        if (g4 >= 0) {
+          const b = document.createElement('button');
+          b.className = 'mj-btn gang';
+          b.textContent = '暗杠' + tileLabel(g4);
+          b.addEventListener('click', () => doAnGang(g4));
+          els.actions.appendChild(b);
+        }
+      }
+      // 补杠：玩家回合内、碰过的牌手牌有第 4 张
+      if (phase === 'turn' && turnIdx === 0) {
+        players[0].melds.forEach(m => {
+          if (m.type === 'gang' || m.bugang) return;
+          if (players[0].concealed.indexOf(m.tile) >= 0) {
+            const b = document.createElement('button');
+            b.className = 'mj-btn gang';
+            b.textContent = '补杠' + tileLabel(m.tile);
+            b.addEventListener('click', () => doBuGang(m));
+            els.actions.appendChild(b);
+          }
+        });
+      }
       if (phase === 'claim' && pending) {
         const mk = (txt, cls, fn) => {
           const b = document.createElement('button');
@@ -583,6 +563,109 @@
       if (lz2 >= 2) trips++;             // 赖子将也算刻类
       return trips >= 3 ? '刻子型（碰碰胡风向）' : '平胡';
     }
+  function doDiscard(p, idx, fromEl) {
+      if (phase !== 'turn') return;
+      phase = 'discarding';            // 出牌锁：防止 240ms 空窗内重复出牌（快速连点/脚本轮询）
+      const t = p.concealed.splice(idx, 1)[0];
+      p.discards.push(t);
+      drawn = null;
+      if (!p.bot) sortHand(p);
+      render();
+      flyTile(t, fromEl || (p.bot ? oppElFor(p.seat) : null));
+      setTimeout(() => checkClaims(p.seat, t), 240);
+    }
+
+    /** 出牌后：按 杠 > 碰 询问各家（合肥红中规则：只允许自摸胡，点炮不能胡） */
+    function checkClaims(fromSeat, tile) {
+      claimTile = tile; claimFrom = fromSeat;
+      const order = [1, 2, 3].map(k => (fromSeat + k) % 4);
+
+      // 杠 / 碰（赖子不可碰杠）
+      const opts = [];
+      if (tile !== LAIZI) {
+        for (const s of order) {
+          const n = countOf(players[s].concealed, tile);
+          if (n >= 3) opts.push({ seat: s, type: 'gang' });
+          else if (n >= 2) opts.push({ seat: s, type: 'peng' });
+        }
+      }
+      opts.sort((a, b) => (a.type === 'gang' ? 0 : 1) - (b.type === 'gang' ? 0 : 1));
+      claimQueue = opts;
+      processClaimQueue();
+    }
+
+    function processClaimQueue() {
+      while (claimQueue.length) {
+        const o = claimQueue.shift();
+        if (o.seat === 0) {
+          phase = 'claim';
+          pending = { tile: claimTile, from: claimFrom, type: o.type };
+          render();
+          ctx.setStatus(`可以「${o.type === 'gang' ? '杠' : '碰'}」${tileLabel(claimTile)}，要吗？`);
+          return;
+        }
+        if (botWantsClaim(players[o.seat], claimTile, o.type)) {
+          return applyMeld(players[o.seat], claimTile, o.type, claimFrom);
+        }
+      }
+      nextTurn(claimFrom);
+    }
+
+    function applyMeld(p, tile, type, fromSeat) {
+      const from = players[fromSeat];
+      if (from.discards.length) from.discards.pop();     // 从牌河拿走
+      const n = type === 'gang' ? 3 : 2;
+      for (let i = 0; i < n; i++) {
+        const idx = p.concealed.indexOf(tile);
+        if (idx >= 0) p.concealed.splice(idx, 1);
+      }
+      p.melds.push({ type, tile, from: fromSeat });
+      turnIdx = p.seat;
+      pending = null;
+      // 碰/杠 toast（谁碰了什么，一眼可见）
+      showToast(`${SEAT_NAME[p.seat]}${type === 'gang' ? '杠' : '碰'} ${tileLabel(tile)}`);
+
+      if (type === 'gang' && wall.length) {
+        const t = wall.pop();
+        p.concealed.push(t);
+        drawn = { seat: p.seat, tile: t };
+        if (!p.bot) sortHand(p);
+        if (isWin(p)) return endGame(p.seat, t, true);   // 杠上开花
+      }
+      phase = 'turn';
+      render();
+      if (p.bot) setTimeout(() => botDiscard(p), 420);
+      else ctx.setStatus('点一张牌打出去');
+    }
+
+    function humanClaim(yes) {
+      if (phase !== 'claim' || !pending) return;
+      const p = players[0], o = pending;
+      pending = null;
+      if (yes) {
+        applyMeld(p, o.tile, o.type, o.from);
+      } else {
+        phase = 'turn';
+        processClaimQueue();     // 继续问后面的 AI
+      }
+    }
+
+    function nextTurn(fromSeat) {
+      turnIdx = (fromSeat + 1) % 4;
+      beginTurn(true);
+    }
+
+    function endGame(seat, tile, self) {
+      phase = 'over'; winner = seat; winTile = tile == null ? -1 : tile; selfDrawWin = !!self;
+      render();
+      if (seat === -1) ctx.setStatus('流局了（牌墙摸完），点新局再来');
+      else {
+        showHuView(seat, tile, self);      // 胡牌定格：摊牌 + 番型
+        if (seat === 0) ctx.setStatus(self ? '自摸！你胡了（低调收好）' : '你胡了！（低调收好）');
+        else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？`);
+      }
+      if (ctx.onGameEnd) ctx.onGameEnd(seat === 0 ? 'player' : 'ai');
+    }
 
     return {
       mount(el, appCtx) {
@@ -601,6 +684,10 @@
           toast: els.toast ? !els.toast.hidden : false,
           huView: els.huview ? !els.huview.hidden : false,
           fresh: !!document.querySelector('.mj-tile.fresh'),
+          tenpai: listTenpai(players[0]).length,
+          canAnGang: findQuad(players[0]) >= 0,
+          canBuGang: players[0].melds.some(m => m.type === 'peng' && !m.bugang
+            && players[0].concealed.indexOf(m.tile) >= 0),
         });
         window.__mjDiscard = (i) => {
           if (phase !== 'turn' || turnIdx !== 0) return 'not-your-turn';
@@ -610,6 +697,20 @@
           return 'ok';
         };
         window.__mjClaim = (yes) => { humanClaim(!!yes); return 'ok'; };
+        // 冒烟：玩家暗杠 / 补杠
+        window.__mjAnGang = () => {
+          const g4 = findQuad(players[0]);
+          if (g4 < 0) return 'no-quad';
+          doAnGang(g4);
+          return 'ok';
+        };
+        window.__mjBuGang = () => {
+          const m = players[0].melds.find(x => x.type === 'peng' && !x.bugang
+            && players[0].concealed.indexOf(x.tile) >= 0);
+          if (!m) return 'no-bugang';
+          doBuGang(m);
+          return 'ok';
+        };
         // 冒烟/模拟用：开新局
         window.__mjNewGame = () => { newGame(); return 'ok'; };
         // 冒烟用：让玩家座位也按 AI 策略出牌（验证胡牌/碰杠链路真的会触发）
@@ -647,6 +748,45 @@
 
   // 测试钩子：供 Node 单测与冒烟脚本校验胡牌判定
   window.__mjCanWin = canWinTiles;
+    /** 听牌检测：遍历 27 种真牌 + 赖子，替换/加进手牌能胡的和数量 */
+  function listTenpai(p) {
+    const need = 4 - p.melds.length;
+    const results = {};
+    const base = p.concealed.slice();
+    // 摸牌后阶段：已有 14 张 base，试打一张再看
+    const tryHand = (hand, add) => {
+      const h = hand.slice();
+      if (add != null) h.push(add);    // add 可能是 0（1万），不能用 if(add)
+      if (h.length !== need * 3 + 2) return;
+      if (canWinTiles(h, p.melds.length)) {
+        const t = add == null ? -1 : add;
+        if (!results[t]) results[t] = 0;
+        results[t] += 1;
+      }
+    };
+    if (base.length === need * 3 + 2) {
+      // 一轮之初 13+摸1=14：试打任意一张，若还能胡 -> 听
+      for (const t of base) {
+        const rest = base.filter(x => x !== t);
+        if (rest.length !== need * 3 + 1) continue;
+        for (let a = 0; a < 27; a++) tryHand(rest, a);
+        tryHand(rest, LAIZI);
+      }
+    } else {
+      for (let a = 0; a < 27; a++) tryHand(base, a);
+      tryHand(base, LAIZI);
+    }
+    return Object.keys(results).map(k => ({
+      t: Number(k),
+      n: results[k],
+    })).filter(x => x.t >= 0);
+  }
+
+  // 听牌检测钩子：直接给手牌数组 + 副露数，返回可胡列表
+  window.__mjTenpai = (hand, meldCount) => {
+    const fake = { concealed: hand.slice(), melds: new Array(meldCount || 0).fill({}) };
+    return listTenpai(fake);
+  };
 
   window.GlassGames.register({
     id: 'mahjong',
