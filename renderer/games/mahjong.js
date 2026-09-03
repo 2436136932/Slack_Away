@@ -114,6 +114,7 @@
     let claimDeadline = 0, claimTick = null;   // 碰/杠倒计时自动过
     let roundInCircle = 0;                    // 第几局（一圈 4 局，东南西北轮庄）
     let stats = { games: 0, win: 0, selfDraw: 0, total: 0 };   // 本地统计
+    let score = [0, 0, 0, 0];                     // 累计积分（一圈内各家）
 
     /* ---------- 建牌墙 / 发牌 ---------- */
     function buildWall() {
@@ -467,7 +468,7 @@
       els.lastPoolTile = pool.length ? els.pool.lastChild : null;
       // 元信息
       const circleTxt = ['东', '南', '西', '北'][(roundInCircle - 1) % 4] || '东';
-      els.meta.textContent = `牌墙 ${wall.length} · 赖子 中 · 第${Math.ceil(roundInCircle / 4)}圈·${circleTxt}家坐庄 · 难度 ${diff === 'easy' ? '简单' : diff === 'hard' ? '困难' : '中等'} · 你 ${stats.win}胜/${stats.games}局 (自摸${stats.selfDraw})`;
+      els.meta.textContent = `牌墙 ${wall.length} · 赖子 中 · 第${Math.ceil(roundInCircle / 4)}圈·${circleTxt}家坐庄 · 难度 ${diff === 'easy' ? '简单' : diff === 'hard' ? '困难' : '中等'} · 你 ${stats.win}胜/${stats.games}局 (自摸${stats.selfDraw}) · 积分 你${score[0] > 0 ? '+' : ''}${score[0]}`;
       // 我的副露（真实牌张，不再是文字 chip）
       els.mymeld.innerHTML = '';
       const me0 = players[0];
@@ -592,32 +593,63 @@
         : '点炮';
       const handStr = p.concealed.map(tileLabel).join(' ');
       const meldStr = p.melds.map(m => (m.type === 'gang' ? '杠' : '碰') + tileLabel(m.tile)).join(' ') || '无';
+      const fan = calcFan(p, !!self);
+      const pts = self ? fan.fan * 3 : 0;   // 自摸：3 家各付 fan 分
       els.huview.innerHTML = `
         <div class="mj-hucard">
-          <div class="mj-hutitle">${SEAT_NAME[seat]}胡了 · ${how}</div>
+          <div class="mj-hutitle">${SEAT_NAME[seat]}胡了 · ${how} · ${fan.fan}番</div>
           <div class="mj-huline"><span class="lb">胡牌</span><b>${tileLabel(tile)}</b></div>
           <div class="mj-huline"><span class="lb">手牌</span><span class="tiles">${handStr}</span></div>
           <div class="mj-huline"><span class="lb">副露</span><span class="tiles">${meldStr}</span></div>
-          <div class="mj-huline"><span class="lb">番型</span><span class="tiles">${huName(p)}</span></div>
+          <div class="mj-huline"><span class="lb">番型</span><span class="tiles">${fan.names.join(' + ')}</span></div>
+          <div class="mj-huline"><span class="lb">得分</span><span class="tiles">+${pts}</span></div>
         </div>`;
       els.huview.hidden = false;
       clearTimeout(huTimer);
       huTimer = setTimeout(() => { els.huview.hidden = true; }, 2600);
     }
 
-    /** 简单番型名（MVP：只区分最常见三档） */
-    function huName(p) {
+    /** 完整计番（合肥红中赖子常用番型）：返回 { names:[], fan } */
+    function calcFan(p, self) {
+      const names = [];
+      let fan = 1;                                  // 平胡打底
+      const all = p.concealed.concat(p.melds.map(m => m.tile));
+      // 清一色：所有牌（含副露）同花色或赖子
+      const suits = new Set(all.filter(t => t !== LAIZI).map(t => Math.floor(t / 9)));
+      if (suits.size === 1) { names.push('清一色'); fan += 4; }
+      // 碰碰胡：4 副全是刻子（副露全碰/杠 + 暗牌全刻/赖子补）
       const { c, lz } = countTiles(p.concealed);
-      let lz2 = lz;                      // lz 是 const，这里需要可变的计数
-      let trips = 0;
-      let i = 0;
+      let lz2 = lz, trips = 0, i = 0;
       while (i < 27) {
         if (c[i] >= 3) { trips++; c[i] -= 3; }
         else if (lz2 >= 3 - c[i] && c[i] > 0) { trips++; lz2 -= 3 - c[i]; c[i] = 0; }
         i++;
       }
-      if (lz2 >= 2) trips++;             // 赖子将也算刻类
-      return trips >= 3 ? '刻子型（碰碰胡风向）' : '平胡';
+      if (lz2 >= 2) trips++;                        // 赖子将也算刻类
+      const meldTrips = p.melds.length;
+      if (trips + meldTrips >= 4) { names.push('碰碰胡'); fan += 2; }
+      // 七对：无副露且暗牌 14 张分成 7 对（赖子可补）
+      if (!p.melds.length && p.concealed.length === 14) {
+        const { c: c7, lz: lz7 } = countTiles(p.concealed);
+        let pairs = 0, lz7b = lz7;
+        for (let k = 0; k < 27; k++) {
+          if (c7[k] >= 2) { pairs += Math.floor(c7[k] / 2); c7[k] %= 2; }
+          if (c7[k] === 1 && lz7b >= 1) { pairs++; lz7b--; }
+        }
+        if (lz7b >= 2) pairs++;
+        if (pairs >= 7) { names.push('七对'); fan += 4; }
+      }
+      // 杠上开花：自摸且刚杠过
+      if (self && p.melds.some(m => m.type === 'gang')) { names.push('杠上开花'); fan += 2; }
+      return { names: names.length ? names : ['平胡'], fan };
+    }
+
+    /** 分数结算：自摸时其他 3 家各付 fan 分，输家赢家增减 */
+    function settle(seat, fan) {
+      for (let s = 0; s < 4; s++) {
+        if (s === seat) score[s] += fan * 3;
+        else score[s] -= fan;
+      }
     }
   function doDiscard(p, idx, fromEl) {
       if (phase !== 'turn') return;
@@ -721,6 +753,9 @@
         if (seat === 0) { stats.win++; if (self) stats.selfDraw++; }
         stats.total++;
         saveStats();
+        // 分数结算：自摸时各家付 fan 分
+        const fan = calcFan(players[seat], !!self);
+        settle(seat, fan.fan);
       }
       render();
       if (seat === -1) ctx.setStatus('流局了（牌墙摸完），点新局再来');
@@ -757,6 +792,7 @@
             && players[0].concealed.indexOf(m.tile) >= 0),
           round: roundInCircle,
           stats: { ...stats },
+          score: score.slice(),
         });
         window.__mjDiscard = (i) => {
           if (phase !== 'turn' || turnIdx !== 0) return 'not-your-turn';
