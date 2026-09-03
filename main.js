@@ -311,12 +311,21 @@ function createWindow() {
               // 连打 3 局（座位 0 也用 AI 策略，碰杠全接），统计胡家分布
               let huSeats = [], drew = 0;
               for (let g = 0; g < 3; g++) {
-                let steps = 0, last = null;
+                let steps = 0, last = null, overSeen = false;
                 for (; steps < 400; steps++) {
                   const st = JSON.parse(await win.webContents.executeJavaScript(
                     "JSON.stringify(window.__smokeState())"));
                   last = st;
-                  if (st.phase === 'over') break;
+                  if (st.phase === 'over') {
+                    // 胡牌定格截图：别人胡牌时应弹出摊牌面板
+                    if (!overSeen) {
+                      overSeen = true;
+                      console.log(`[SMOKE] 麻将 第${g + 1}局 胡牌定格: winner=${st.winner}`
+                        + ` huView=${st.huView} myMelds=${st.myMelds} fresh=${st.fresh} toast=${st.toast}`);
+                      await shot(`smoke-new-红中麻将-胡牌定格${g + 1}.png`);
+                    }
+                    break;
+                  }
                   if (st.canDiscard) await win.webContents.executeJavaScript("window.__mjPlayAsBot()");
                   else if (st.pending) await win.webContents.executeJavaScript("window.__mjClaim(true)");
                   await new Promise(r => setTimeout(r, 60));

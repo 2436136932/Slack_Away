@@ -37,7 +37,11 @@ const sandbox = {
   console,
   setTimeout: (fn) => { fn(); return 0; },       // 同步执行定时器
   clearTimeout() {},
-  document: { createElement: () => stubEl(), createElementNS: () => stubEl() },
+  document: {
+    createElement: () => stubEl(),
+    createElementNS: () => stubEl(),
+    querySelector: () => null,           // __smokeState 里查 .mj-tile.fresh
+  },
   Math, JSON, Array, Number, String, Object,
 };
 let registered = null;

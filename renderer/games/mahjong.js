@@ -198,16 +198,12 @@
       setTimeout(() => checkClaims(p.seat, t), 240);
     }
 
-    /** 出牌后：按 胡 > 杠 > 碰 的优先级询问各家 */
+    /** 出牌后：按 杠 > 碰 询问各家（合肥红中规则：只允许自摸胡，点炮不能胡） */
     function checkClaims(fromSeat, tile) {
       claimTile = tile; claimFrom = fromSeat;
       const order = [1, 2, 3].map(k => (fromSeat + k) % 4);
 
-      // 1) 点炮胡：座次最近者先胡
-      for (const s of order) {
-        if (canHuOn(players[s], tile)) return endGame(s, tile, false);
-      }
-      // 2) 杠 / 碰（赖子不可碰杠）
+      // 杠 / 碰（赖子不可碰杠）
       const opts = [];
       if (tile !== LAIZI) {
         for (const s of order) {
@@ -249,6 +245,8 @@
       p.melds.push({ type, tile, from: fromSeat });
       turnIdx = p.seat;
       pending = null;
+      // 碰/杠 toast（谁碰了什么，一眼可见）
+      showToast(`${SEAT_NAME[p.seat]}${type === 'gang' ? '杠' : '碰'} ${tileLabel(tile)}`);
 
       if (type === 'gang' && wall.length) {
         const t = wall.pop();
@@ -284,8 +282,11 @@
       phase = 'over'; winner = seat; winTile = tile == null ? -1 : tile; selfDrawWin = !!self;
       render();
       if (seat === -1) ctx.setStatus('流局了（牌墙摸完），点新局再来');
-      else if (seat === 0) ctx.setStatus(self ? '自摸！你胡了（低调收好）' : '你胡了！（低调收好）');
-      else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？`);
+      else {
+        showHuView(seat, tile, self);      // 胡牌定格：摊牌 + 番型
+        if (seat === 0) ctx.setStatus(self ? '自摸！你胡了（低调收好）' : '你胡了！（低调收好）');
+        else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？`);
+      }
       if (ctx.onGameEnd) ctx.onGameEnd(seat === 0 ? 'player' : 'ai');
     }
 
@@ -393,8 +394,11 @@
         </div>
         <div class="mj-pool"></div>
         <div class="mj-meta"></div>
+        <div class="mj-mymeid"></div>
         <div class="mj-hand"></div>
         <div class="mj-actions"></div>
+        <div class="mj-toast" hidden></div>
+        <div class="mj-huview" hidden></div>
       `;
       root.appendChild(wrap);
       els = {
@@ -402,8 +406,11 @@
         opps: Array.prototype.slice.call(wrap.querySelectorAll('.mj-opp')),
         pool: wrap.querySelector('.mj-pool'),
         meta: wrap.querySelector('.mj-meta'),
+        mymeld: wrap.querySelector('.mj-mymeid'),
         hand: wrap.querySelector('.mj-hand'),
         actions: wrap.querySelector('.mj-actions'),
+        toast: wrap.querySelector('.mj-toast'),
+        huview: wrap.querySelector('.mj-huview'),
       };
     }
 
@@ -432,16 +439,37 @@
         }
         el.innerHTML = h;
       });
-      // 牌河
+      // 牌河（最后一张高亮"刚打出"）
       els.pool.innerHTML = '';
       const pool = [];
       for (let s = 0; s < 4; s++) for (const t of players[s].discards) pool.push({ s, t });
-      pool.forEach(x => {
-        const d = tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : ''));
+      pool.forEach((x, i) => {
+        const isLast = i === pool.length - 1 && phase !== 'over';
+        const d = tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh' : ''));
         els.pool.appendChild(d);
       });
       // 元信息
       els.meta.textContent = `牌墙 ${wall.length} · 赖子 中 · 难度 ${diff === 'easy' ? '简单' : diff === 'hard' ? '困难' : '中等'}`;
+      // 我的副露（真实牌张，不再是文字 chip）
+      els.mymeld.innerHTML = '';
+      const me0 = players[0];
+      if (me0.melds.length) {
+        const wrap2 = document.createElement('div');
+        wrap2.className = 'mj-melds';
+        me0.melds.forEach(m => {
+          const g = document.createElement('div');
+          g.className = 'mj-mset';
+          const label = document.createElement('span');
+          label.className = 'mj-settag ' + (m.type === 'gang' ? 'g' : 'p');
+          label.textContent = m.type === 'gang' ? '杠' : '碰';
+          g.appendChild(label);
+          const n = m.type === 'gang' ? 3 : 2;
+          for (let k = 0; k < n; k++) g.appendChild(tileEl(m.tile, 'mini'));
+          g.appendChild(tileEl(m.tile, 'mini rot'));   // 横牌标来源
+          wrap2.appendChild(g);
+        });
+        els.mymeld.appendChild(wrap2);
+      }
       // 手牌
       els.hand.innerHTML = '';
       const me = players[0];
@@ -458,20 +486,20 @@
         }
         els.hand.appendChild(d);
       });
-      // 操作按钮
+      // 操作按钮（优先级：胡 > 杠 > 碰 > 过；碰/杠可用时都能点）
       els.actions.innerHTML = '';
       if (phase === 'claim' && pending) {
-        ['peng', 'gang'].forEach(() => {});
-        const btnY = document.createElement('button');
-        btnY.className = 'mj-btn yes';
-        btnY.textContent = pending.type === 'gang' ? '杠' : '碰';
-        btnY.addEventListener('click', () => humanClaim(true));
-        const btnN = document.createElement('button');
-        btnN.className = 'mj-btn no';
-        btnN.textContent = '过';
-        btnN.addEventListener('click', () => humanClaim(false));
-        els.actions.appendChild(btnY);
-        els.actions.appendChild(btnN);
+        const mk = (txt, cls, fn) => {
+          const b = document.createElement('button');
+          b.className = 'mj-btn ' + cls;
+          b.textContent = txt;
+          b.addEventListener('click', fn);
+          els.actions.appendChild(b);
+          return b;
+        };
+        if (pending.type === 'gang') mk('杠', 'gang', () => humanClaim(true));
+        else mk('碰', 'peng', () => humanClaim(true));
+        mk('过', 'no', () => humanClaim(false));
       } else if (phase === 'over') {
         const b = document.createElement('button');
         b.className = 'mj-btn no';
@@ -479,6 +507,58 @@
         b.addEventListener('click', () => newGame());
         els.actions.appendChild(b);
       }
+    }
+
+    /** 碰/杠 toast 动画（1600ms 自动消失） */
+    let toastTimer = null;
+    function showToast(txt) {
+      if (!els.toast) return;
+      els.toast.textContent = txt;
+      els.toast.hidden = false;
+      els.toast.classList.remove('anim');
+      void els.toast.offsetWidth;          // 重启动画
+      els.toast.classList.add('anim');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { els.toast.hidden = true; }, 1600);
+    }
+
+    /** 胡牌定格：半透明遮罩，摊开胡家手牌+副露，标"自摸/点炮/杠上开花"，2600ms 自动散场 */
+    let huTimer = null;
+    function showHuView(seat, tile, self) {
+      if (!els.huview) return;
+      const p = players[seat];
+      // 合肥规则只准自摸：点炮分支不会触发（保留兜底）
+      const how = self
+        ? (p.melds.some(m => m.type === 'gang' && m.from === p.seat) ? '杠上开花' : '自摸')
+        : '点炮';
+      const handStr = p.concealed.map(tileLabel).join(' ');
+      const meldStr = p.melds.map(m => (m.type === 'gang' ? '杠' : '碰') + tileLabel(m.tile)).join(' ') || '无';
+      els.huview.innerHTML = `
+        <div class="mj-hucard">
+          <div class="mj-hutitle">${SEAT_NAME[seat]}胡了 · ${how}</div>
+          <div class="mj-huline"><span class="lb">胡牌</span><b>${tileLabel(tile)}</b></div>
+          <div class="mj-huline"><span class="lb">手牌</span><span class="tiles">${handStr}</span></div>
+          <div class="mj-huline"><span class="lb">副露</span><span class="tiles">${meldStr}</span></div>
+          <div class="mj-huline"><span class="lb">番型</span><span class="tiles">${huName(p)}</span></div>
+        </div>`;
+      els.huview.hidden = false;
+      clearTimeout(huTimer);
+      huTimer = setTimeout(() => { els.huview.hidden = true; }, 2600);
+    }
+
+    /** 简单番型名（MVP：只区分最常见三档） */
+    function huName(p) {
+      const { c, lz } = countTiles(p.concealed);
+      let lz2 = lz;                      // lz 是 const，这里需要可变的计数
+      let trips = 0;
+      let i = 0;
+      while (i < 27) {
+        if (c[i] >= 3) { trips++; c[i] -= 3; }
+        else if (lz2 >= 3 - c[i] && c[i] > 0) { trips++; lz2 -= 3 - c[i]; c[i] = 0; }
+        i++;
+      }
+      if (lz2 >= 2) trips++;             // 赖子将也算刻类
+      return trips >= 3 ? '刻子型（碰碰胡风向）' : '平胡';
     }
 
     return {
@@ -494,6 +574,10 @@
           poolLaizi: players.reduce((n, p) => n + p.discards.filter(t => t === LAIZI).length, 0),
           canDiscard: phase === 'turn' && turnIdx === 0,
           pending: pending ? pending.type : '',
+          myMelds: players[0].melds.length,
+          toast: els.toast ? !els.toast.hidden : false,
+          huView: els.huview ? !els.huview.hidden : false,
+          fresh: !!document.querySelector('.mj-tile.fresh'),
         });
         window.__mjDiscard = (i) => {
           if (phase !== 'turn' || turnIdx !== 0) return 'not-your-turn';

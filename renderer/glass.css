@@ -593,3 +593,98 @@ html, body {
   border-color: rgba(198, 130, 122, calc(0.35 + 0.35 * var(--glass-alpha)));
 }
 .mj-btn:hover { filter: brightness(1.08); }
+
+/* ---------- 麻将 v2 界面优化：我的副露 / 最近出牌 / toast / 胡牌定格 ---------- */
+.mj-mymeid {
+  flex: none;
+  min-height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px;
+}
+.mj-mymeid .mj-melds { display: flex; gap: 10px; }
+.mj-mset {
+  display: flex; align-items: center; gap: 1px;
+  background: rgba(168, 172, 180, calc(0.04 + 0.08 * var(--glass-alpha)));
+  border: 1px solid rgba(120, 126, 138, calc(0.06 + 0.12 * var(--glass-alpha)));
+  border-radius: 6px;
+  padding: 2px 3px;
+}
+.mj-settag {
+  font-size: 9px; font-weight: 600;
+  padding: 1px 4px; border-radius: 4px; margin-right: 2px;
+}
+.mj-settag.p { background: rgba(126,144,170, calc(0.14 + 0.24 * var(--glass-alpha))); color: rgba(29,29,31, calc(0.4 + 0.4 * var(--stone-ink))); }
+.mj-settag.g { background: rgba(198,130,122, calc(0.16 + 0.26 * var(--glass-alpha))); color: rgba(29,29,31, calc(0.4 + 0.4 * var(--stone-ink))); }
+.mj-tile.mini { width: 17px; height: 24px; font-size: 8.5px; border-radius: 3px; }
+.mj-tile.rot { transform: rotate(90deg); }
+
+/* 牌河最后一张：高亮边框（低饱和） */
+.mj-tile.fresh {
+  border-color: rgba(126, 144, 170, calc(0.45 + 0.35 * var(--glass-alpha)));
+  box-shadow: 0 0 0 1px rgba(126,144,170, calc(0.25 + 0.3 * var(--glass-alpha)));
+}
+
+/* 碰/杠 toast（居中，1.6s 淡出） */
+.mj-toast {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 6px 16px;
+  border-radius: 10px;
+  font-size: 13px; font-weight: 500; font-family: var(--font);
+  background: rgba(252, 252, 254, calc(0.55 + 0.40 * var(--glass-alpha)));
+  -webkit-backdrop-filter: blur(8px) saturate(160%);
+  backdrop-filter: blur(8px) saturate(160%);
+  border: 1px solid rgba(120, 126, 138, calc(0.2 + 0.25 * var(--glass-alpha)));
+  color: rgba(29, 29, 31, calc(0.5 + 0.45 * var(--stone-ink)));
+  pointer-events: none;
+  white-space: nowrap;
+}
+.mj-toast.anim { animation: mjToast 1.6s ease forwards; }
+@keyframes mjToast {
+  0% { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  12% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  78% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+}
+
+/* 胡牌定格遮罩 */
+.mj-huview {
+  position: absolute; inset: 0;
+  z-index: 30;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(250, 250, 252, calc(0.62 + 0.25 * var(--glass-alpha)));
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  backdrop-filter: blur(6px) saturate(160%);
+}
+.mj-huview[hidden] { display: none; }
+.mj-hucard {
+  min-width: 240px; max-width: 90%;
+  border-radius: 14px;
+  background: rgba(252, 252, 254, calc(0.80 + 0.18 * var(--glass-alpha)));
+  border: 1px solid rgba(120, 126, 138, calc(0.15 + 0.2 * var(--glass-alpha)));
+  padding: 14px 18px;
+  font-family: var(--font);
+}
+.mj-hucard .mj-hutitle {
+  font-size: 14px; font-weight: 500;
+  color: rgba(29, 29, 31, calc(0.55 + 0.4 * var(--stone-ink)));
+  margin-bottom: 10px;
+}
+.mj-hucard .mj-huline {
+  display: flex; gap: 8px; align-items: baseline;
+  font-size: 12px; line-height: 1.8;
+  color: rgba(29, 29, 31, calc(0.4 + 0.4 * var(--stone-ink)));
+}
+.mj-hucard .mj-huline .lb {
+  flex: none; width: 34px; text-align: right;
+  font-size: 11px;
+  color: rgba(29, 29, 31, calc(0.28 + 0.30 * var(--stone-ink)));
+}
+.mj-hucard .mj-huline b {
+  font-size: 15px;
+  color: rgba(198, 108, 100, calc(0.5 + 0.4 * var(--stone-ink)));
+}
+.mj-hucard .tiles { word-break: break-all; }
