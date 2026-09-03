@@ -707,3 +707,11 @@ html, body {
   border-color: rgba(198, 130, 122, calc(0.35 + 0.35 * var(--glass-alpha)));
 }
 .mj-btn.gang:hover { filter: brightness(1.08); }
+
+/* 手牌花色分组：组与组之间留白，读牌一目了然 */
+.mj-hand .mj-grp {
+  display: flex; gap: 2px;
+}
+.mj-hand .mj-grp + .mj-grp {
+  margin-left: 8px;
+}

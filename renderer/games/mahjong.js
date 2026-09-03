@@ -111,6 +111,7 @@
     let undoStack = [];
     let els = {};
     let onHandClick = null;
+    let claimDeadline = 0, claimTick = null;   // 碰/杠倒计时自动过
 
     /* ---------- 建牌墙 / 发牌 ---------- */
     function buildWall() {
@@ -147,6 +148,7 @@
       pending = null; claimQueue = []; drawn = null; undoStack = [];
       // 必须先清掉上一局的 over，否则 beginTurn 开头的守卫会直接 return，新局卡死
       phase = 'idle';
+      clearClaimTick();
       render();
       beginTurn(false);
     }
@@ -399,6 +401,24 @@
       return els.opps[seat === 3 ? 0 : seat === 2 ? 1 : 2] || null;
     }
 
+    /** 碰/杠倒计时：6s 不点自动「过」 */
+    function clearClaimTick() {
+      if (claimTick) { clearInterval(claimTick); claimTick = null; }
+    }
+    function startClaimTick() {
+      clearClaimTick();
+      claimDeadline = Date.now() + 6000;
+      claimTick = setInterval(() => {
+        const left = Math.max(0, Math.ceil((claimDeadline - Date.now()) / 1000));
+        const btn = els.actions ? els.actions.querySelector('.mj-btn.no') : null;
+        if (btn) btn.textContent = '过 (' + left + 's)';
+        if (Date.now() >= claimDeadline) {
+          clearClaimTick();
+          humanClaim(false);            // 超时自动过
+        }
+      }, 250);
+    }
+
     function render() {
       if (!els.wrap) return;
       // 对手
@@ -449,13 +469,19 @@
         });
         els.mymeld.appendChild(wrap2);
       }
-      // 手牌
+      // 手牌：按花色分区（万/条/筒/赖子，组内升序），刚摸的牌放最右
       els.hand.innerHTML = '';
       const me = players[0];
       const canDiscard = phase === 'turn' && turnIdx === 0;
+      const drawnIdx = (drawn && drawn.seat === 0) ? me.concealed.length - 1 : -1;
+      const groups = [[], [], [], []];          // 0万 1条 2筒 3赖子
       me.concealed.forEach((t, i) => {
-        const isDrawn = drawn && drawn.seat === 0 && i === me.concealed.length - 1;
-        const d = tileEl(t, (isDrawn ? 'drawn' : '') + (canDiscard ? ' pick' : ''));
+        if (i === drawnIdx) return;              // 刚摸的牌单独放最右
+        groups[t === LAIZI ? 3 : Math.floor(t / 9)].push({ t, i });
+      });
+      groups.forEach(g => g.sort((a, b) => a.t - b.t));
+      const mkTile = (t, i, cls) => {
+        const d = tileEl(t, cls + (canDiscard ? ' pick' : ''));
         if (canDiscard) {
           d.addEventListener('click', () => {
             undoStack.push(snapshot());
@@ -463,8 +489,19 @@
             doDiscard(me, i, d);
           });
         }
-        els.hand.appendChild(d);
+        return d;
+      };
+      groups.forEach((g, gi) => {
+        if (!g.length) return;
+        const grp = document.createElement('div');
+        grp.className = 'mj-grp';
+        g.forEach(({ t, i }) => grp.appendChild(mkTile(t, i, '')));
+        els.hand.appendChild(grp);
       });
+      // 刚摸的牌：放最右（标准摆法）
+      if (drawnIdx >= 0) {
+        els.hand.appendChild(mkTile(me.concealed[drawnIdx], drawnIdx, 'drawn'));
+      }
       // 操作按钮（优先级：胡 > 杠 > 碰 > 过；碰/杠可用时都能点）
       els.actions.innerHTML = '';
       // 暗杠：玩家回合内、手牌有 4 张同真牌
@@ -602,6 +639,7 @@
           pending = { tile: claimTile, from: claimFrom, type: o.type };
           render();
           ctx.setStatus(`可以「${o.type === 'gang' ? '杠' : '碰'}」${tileLabel(claimTile)}，要吗？`);
+          startClaimTick();
           return;
         }
         if (botWantsClaim(players[o.seat], claimTile, o.type)) {
@@ -640,6 +678,7 @@
 
     function humanClaim(yes) {
       if (phase !== 'claim' || !pending) return;
+      clearClaimTick();
       const p = players[0], o = pending;
       pending = null;
       if (yes) {

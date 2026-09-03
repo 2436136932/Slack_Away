@@ -37,6 +37,8 @@ const sandbox = {
   console,
   setTimeout: (fn) => { fn(); return 0; },       // 同步执行定时器
   clearTimeout() {},
+  setInterval: () => 0,                          // 倒计时桩：模拟不真的跑
+  clearInterval() {},
   document: {
     createElement: () => stubEl(),
     createElementNS: () => stubEl(),
