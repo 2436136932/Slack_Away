@@ -334,6 +334,11 @@
   function activateGame(id) {
     const prev = app.gameInst;
     if (prev && prev.destroy) prev.destroy();
+    const def = window.GlassGames.get(id);
+    // flags.hasAI === false 的游戏（连连看/2048/扫雷）没有"对手"，隐藏模式切换和 LLM 设置
+    const hasAI = !def || !def.flags || def.flags.hasAI !== false;
+    $('#modeSeg').style.display = hasAI ? '' : 'none';
+    $('#btnLlm').style.display = hasAI ? '' : 'none';
     app.gameInst = window.GlassGames.activate(id, stage, ctx);
     settings.activeGame = id;
     persist({ activeGame: id });

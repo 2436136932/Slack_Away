@@ -347,3 +347,153 @@ html, body {
 }
 #llmPanel .foot .btn.primary { background: var(--accent); color: #fff; }
 #llmPanel .hint { font-size: 10.5px; color: var(--glass-text-dim); margin-top: 8px; line-height: 1.5; }
+
+/* ============================================================
+ * 新增游戏（连连看 / 2048 / 扫雷）
+ * 全部走 calc() 联动 --glass-alpha（玻璃透明度）与 --stone-ink（墨色），
+ * 所以拖动滑块时 DOM 自动变淡，不需要 JS 重绘。
+ * ============================================================ */
+
+/* ---------- 连连看 ---------- */
+.ll-wrap {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px;
+  box-sizing: border-box;
+}
+.ll-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--c), 1fr);
+  gap: 4px;
+  width: 100%;
+  max-height: 100%;
+}
+.ll-tile {
+  aspect-ratio: 1;
+  min-width: 0; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 9px;
+  border: 1px solid rgba(120, 126, 138, calc(0.10 + 0.26 * var(--glass-alpha)));
+  background: rgba(168, 172, 180, calc(0.04 + 0.13 * var(--glass-alpha)));
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.22s ease, transform 0.12s ease, background 0.2s ease;
+}
+.ll-tile .e {
+  font-size: clamp(13px, 3.6vh, 26px);
+  line-height: 1;
+  opacity: calc(0.30 + 0.70 * var(--stone-ink));
+}
+.ll-tile:hover {
+  background: rgba(168, 172, 180, calc(0.10 + 0.20 * var(--glass-alpha)));
+}
+.ll-tile.sel {
+  /* 选中态：低饱和灰蓝，不用亮蓝（亮蓝在透明玻璃上太跳） */
+  background: rgba(126, 144, 170, calc(0.12 + 0.30 * var(--glass-alpha)));
+  border-color: rgba(126, 144, 170, calc(0.35 + 0.40 * var(--glass-alpha)));
+  transform: scale(1.06);
+}
+.ll-tile.hit {
+  background: rgba(198, 130, 122, calc(0.18 + 0.32 * var(--glass-alpha)));
+  transform: scale(1.12);
+}
+.ll-tile.gone { opacity: 0; pointer-events: none; transform: scale(0.5); }
+.ll-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ll-path {
+  fill: none;
+  stroke: rgba(126, 144, 170, calc(0.35 + 0.45 * var(--glass-alpha)));
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: llFade 0.3s ease forwards;
+}
+@keyframes llFade { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------- 2048 ---------- */
+.g48-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  gap: 5px;
+  width: min(100%, 46vh);
+  padding: 6px;
+  box-sizing: border-box;
+}
+.g48-cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(12px, 3.2vh, 24px);
+  font-weight: 600;
+  font-family: var(--font);
+  /* 空格：极淡的底 */
+  background: rgba(168, 172, 180, calc(0.03 + 0.09 * var(--glass-alpha)));
+  color: rgba(29, 29, 31, calc(0.45 + 0.40 * var(--stone-ink)));
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.g48-cell.pop { animation: g48pop 0.16s ease; }
+@keyframes g48pop { from { transform: scale(0.4); } to { transform: scale(1); } }
+/* 数值越大越深（灰度梯度，低饱和：颜色浓度由 --stone-ink 控制） */
+.g48-cell[class*=" v"] {
+  background: rgba(168, 172, 180, calc((0.08 + 0.16 * var(--glass-alpha))));
+}
+.g48-cell.v2    { background: rgba(232, 234, 240, calc(0.18 + 0.30 * var(--glass-alpha))); }
+.g48-cell.v4    { background: rgba(216, 220, 230, calc(0.20 + 0.32 * var(--glass-alpha))); }
+.g48-cell.v8    { background: rgba(196, 202, 216, calc(0.22 + 0.34 * var(--glass-alpha))); }
+.g48-cell.v16   { background: rgba(178, 186, 204, calc(0.24 + 0.36 * var(--glass-alpha))); }
+.g48-cell.v32   { background: rgba(162, 172, 194, calc(0.26 + 0.38 * var(--glass-alpha))); }
+.g48-cell.v64   { background: rgba(148, 160, 186, calc(0.28 + 0.40 * var(--glass-alpha))); }
+.g48-cell.v128  { background: rgba(136, 150, 180, calc(0.30 + 0.42 * var(--glass-alpha))); color: rgba(255,255,255, calc(0.55 + 0.35 * var(--stone-ink))); }
+.g48-cell.v256  { background: rgba(126, 142, 176, calc(0.32 + 0.44 * var(--glass-alpha))); color: rgba(255,255,255, calc(0.60 + 0.32 * var(--stone-ink))); }
+.g48-cell.v512  { background: rgba(116, 134, 172, calc(0.34 + 0.46 * var(--glass-alpha))); color: rgba(255,255,255, calc(0.65 + 0.28 * var(--stone-ink))); }
+.g48-cell.v1024 { background: rgba(108, 126, 168, calc(0.36 + 0.48 * var(--glass-alpha))); color: rgba(255,255,255, calc(0.70 + 0.24 * var(--stone-ink))); }
+.g48-cell.v2048 { background: rgba(150, 120, 110, calc(0.38 + 0.50 * var(--glass-alpha))); color: rgba(255,255,255, calc(0.75 + 0.20 * var(--stone-ink))); }
+.g48-cell.v4096 { background: rgba(140, 106, 96, calc(0.40 + 0.50 * var(--glass-alpha))); color: rgba(255,255,255, calc(0.78 + 0.18 * var(--stone-ink))); }
+.g48-grid.over { opacity: 0.65; }
+
+/* ---------- 扫雷 ---------- */
+.mn-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--c), 1fr);
+  gap: 2px;
+  width: 100%;
+  max-height: 100%;
+  padding: 6px;
+  box-sizing: border-box;
+}
+.mn-cell {
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(9px, 2.4vh, 18px);
+  font-weight: 600;
+  font-family: var(--font);
+  user-select: none;
+  cursor: pointer;
+  background: rgba(168, 172, 180, calc(0.05 + 0.16 * var(--glass-alpha)));
+  border: 1px solid rgba(120, 126, 138, calc(0.08 + 0.18 * var(--glass-alpha)));
+  transition: background 0.15s ease;
+}
+.mn-cell:hover { background: rgba(168, 172, 180, calc(0.12 + 0.24 * var(--glass-alpha))); }
+.mn-cell.dug {
+  background: transparent;
+  border-color: rgba(120, 126, 138, calc(0.04 + 0.08 * var(--glass-alpha)));
+  cursor: default;
+}
+/* 数字配色：低饱和（亮蓝/鲜红在透明玻璃上太跳，全部降饱和） */
+.mn-cell.n1 { color: rgba(126, 144, 170, calc(0.45 + 0.45 * var(--stone-ink))); }
+.mn-cell.n2 { color: rgba(116, 156, 138, calc(0.45 + 0.45 * var(--stone-ink))); }
+.mn-cell.n3 { color: rgba(198, 130, 122, calc(0.45 + 0.45 * var(--stone-ink))); }
+.mn-cell.n4 { color: rgba(138, 128, 176, calc(0.45 + 0.45 * var(--stone-ink))); }
+.mn-cell.n5 { color: rgba(170, 138, 108, calc(0.45 + 0.45 * var(--stone-ink))); }
+.mn-cell.n6 { color: rgba(108, 156, 158, calc(0.45 + 0.45 * var(--stone-ink))); }
+.mn-cell.n7 { color: rgba(120, 124, 134, calc(0.50 + 0.40 * var(--stone-ink))); }
+.mn-cell.n8 { color: rgba(96, 100, 112, calc(0.50 + 0.40 * var(--stone-ink))); }
+.mn-cell.flag { color: rgba(198, 130, 122, calc(0.40 + 0.45 * var(--stone-ink))); }
+.mn-cell.mine { color: rgba(140, 118, 118, calc(0.30 + 0.35 * var(--stone-ink))); }
+.mn-cell.boom {
+  background: rgba(198, 130, 122, calc(0.16 + 0.30 * var(--glass-alpha)));
+  color: rgba(198, 130, 122, calc(0.55 + 0.35 * var(--stone-ink)));
+}

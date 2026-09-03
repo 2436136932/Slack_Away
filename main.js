@@ -252,6 +252,83 @@ function createWindow() {
         await new Promise(r => setTimeout(r, 600));
         await shot('smoke-8-象棋-空心棋子-最实档.png');
 
+        // ===== 新增三游戏自动验证：遍历所有 tab → 读状态 → 模拟真实操作 → 截图 =====
+        try {
+          // 先把玻璃/墨色恢复到 85%/60%，便于看清
+          await win.webContents.executeJavaScript(`(function () {
+            // 只清淡化态，保留 ghost 模式（后面幽灵测试还要用）
+            document.getElementById('card').classList.remove('faded');
+            var s = document.getElementById('alphaSlider'); s.value = 85;
+            s.dispatchEvent(new Event('input', { bubbles: true }));
+            var i = document.getElementById('inkSlider'); i.value = 60;
+            i.dispatchEvent(new Event('input', { bubbles: true }));
+            return 1;
+          })()`);
+          const tabs = JSON.parse(await win.webContents.executeJavaScript(
+            `JSON.stringify(Array.prototype.map.call(document.querySelectorAll('#gameTabs .tab'),
+              function (b, i) { return { i: i, title: b.title }; }))`));
+          for (const tab of tabs) {
+            const t = tab.title;
+            if (t === '五子棋' || t === '象棋') continue;    // 前面已验证过
+            await win.webContents.executeJavaScript(
+              `document.querySelectorAll('#gameTabs .tab')[${tab.i}].click()`);
+            await new Promise(r => setTimeout(r, 500));
+            const st = await win.webContents.executeJavaScript(
+              "window.__smokeState ? JSON.stringify(window.__smokeState()) : 'null'");
+            console.log(`[SMOKE] ${t} state=${st}`);
+
+            if (t === '连连看') {
+              // 自动找出一对可消的并点掉
+              const pair = await win.webContents.executeJavaScript(`(function () {
+                var p = window.__llPair && window.__llPair();
+                if (!p) return 'no-pair';
+                function hit(pos) {
+                  var el = document.querySelector('.ll-tile[data-r="' + pos.r + '"][data-c="' + pos.c + '"]');
+                  if (!el) return false;
+                  el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                  return true;
+                }
+                if (!hit(p.a) || !hit(p.b)) return 'no-dom';
+                return 'clicked';
+              })()`);
+              await new Promise(r => setTimeout(r, 500));
+              console.log(`[SMOKE] ${t} pair=${pair} after=` + await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState())"));
+            } else if (t === '2048') {
+              // 模拟四个方向各滑一次
+              for (const d of ['left', 'up', 'right', 'down']) {
+                await win.webContents.executeJavaScript(`window.__g48Move && window.__g48Move('${d}')`);
+                await new Promise(r => setTimeout(r, 120));
+              }
+              console.log('[SMOKE] 2048 after-moves=' + await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState())"));
+            } else if (t === '扫雷') {
+              const opened = await win.webContents.executeJavaScript(
+                "window.__mnOpen ? String(window.__mnOpen()) : 'no-hook'");
+              await new Promise(r => setTimeout(r, 300));
+              console.log(`[SMOKE] 扫雷 open=${opened} after=` + await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState())"));
+              // 右键插旗
+              await win.webContents.executeJavaScript(`(function () {
+                var cells = document.querySelectorAll('.mn-cell');
+                var el = cells[0];
+                if (!el) return 0;
+                el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+                return 1;
+              })()`);
+              await new Promise(r => setTimeout(r, 200));
+              console.log('[SMOKE] 扫雷 after-flag=' + await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState())"));
+              // 悔棋
+              await win.webContents.executeJavaScript(`document.getElementById('btnUndo').click()`);
+              await new Promise(r => setTimeout(r, 200));
+              console.log('[SMOKE] 扫雷 after-undo=' + await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState())"));
+            }
+            await shot(`smoke-new-${t}.png`);
+          }
+        } catch (e) { console.log('[SMOKE] new-games error ' + e); }
+
         // 幽灵模式极限隐身：滑块 0% + ghost + 鼠标移开淡化
         await win.webContents.executeJavaScript(`(function () {
           var s = document.getElementById('alphaSlider');
