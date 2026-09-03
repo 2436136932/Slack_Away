@@ -503,6 +503,7 @@ html, body {
   width: 100%; height: 100%;
   display: flex; flex-direction: column; gap: 5px;
   padding: 6px; box-sizing: border-box;
+  position: relative;    /* 胡牌定格/toast/飞行牌 的定位基准 */
 }
 .mj-opps { display: flex; gap: 4px; flex: none; }
 .mj-opp {
@@ -688,3 +689,14 @@ html, body {
   color: rgba(198, 108, 100, calc(0.5 + 0.4 * var(--stone-ink)));
 }
 .mj-hucard .tiles { word-break: break-all; }
+
+/* 出牌飞行动画牌 */
+.mj-tile.fly {
+  position: absolute;   /* 坐标 = flyTile 里相对 .mj-root 计算（left/top） */
+  z-index: 25;
+  pointer-events: none;
+  transition: transform 0.22s ease, opacity 0.22s ease;
+  opacity: 1;
+  /* 低饱和描边，配合全局透明度 */
+  border: 1.5px solid rgba(126, 144, 170, calc(0.5 + 0.4 * var(--glass-alpha)));
+}

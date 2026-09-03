@@ -187,7 +187,7 @@
       else ctx.setStatus(mustDraw ? '你摸了一张，点手牌打出去' : '轮到你出牌，点一张打出去');
     }
 
-    function doDiscard(p, idx) {
+    function doDiscard(p, idx, fromEl) {
       if (phase !== 'turn') return;
       phase = 'discarding';            // 出牌锁：防止 240ms 空窗内重复出牌（快速连点/脚本轮询）
       const t = p.concealed.splice(idx, 1)[0];
@@ -195,6 +195,7 @@
       drawn = null;
       if (!p.bot) sortHand(p);
       render();
+      flyTile(t, fromEl || (p.bot ? oppElFor(p.seat) : null));
       setTimeout(() => checkClaims(p.seat, t), 240);
     }
 
@@ -421,6 +422,27 @@
       return d;
     }
 
+    /** 出牌飞行动画：从 fromEl 飞到牌河最后一张，220ms */
+    function flyTile(t, fromEl) {
+      if (!els.wrap || !fromEl || !els.lastPoolTile) return;
+      const wrapRect = els.wrap.getBoundingClientRect();
+      const fr = fromEl.getBoundingClientRect();
+      const tr = els.lastPoolTile.getBoundingClientRect();
+      const c = tileEl(t, 'fly');
+      c.style.left = (fr.left - wrapRect.left + fr.width / 2) + 'px';
+      c.style.top = (fr.top - wrapRect.top + fr.height / 2) + 'px';
+      els.wrap.appendChild(c);
+      const dx = tr.left - fr.left, dy = tr.top - fr.top;
+      requestAnimationFrame(() => {
+        c.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+        c.style.opacity = '0.4';
+      });
+      setTimeout(() => { try { c.remove(); } catch (e) {} }, 240);
+    }
+    function oppElFor(seat) {
+      return els.opps[seat === 3 ? 0 : seat === 2 ? 1 : 2] || null;
+    }
+
     function render() {
       if (!els.wrap) return;
       // 对手
@@ -448,6 +470,7 @@
         const d = tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh' : ''));
         els.pool.appendChild(d);
       });
+      els.lastPoolTile = pool.length ? els.pool.lastChild : null;
       // 元信息
       els.meta.textContent = `牌墙 ${wall.length} · 赖子 中 · 难度 ${diff === 'easy' ? '简单' : diff === 'hard' ? '困难' : '中等'}`;
       // 我的副露（真实牌张，不再是文字 chip）
@@ -481,7 +504,7 @@
           d.addEventListener('click', () => {
             undoStack.push(snapshot());
             if (undoStack.length > 20) undoStack.shift();
-            doDiscard(me, i);
+            doDiscard(me, i, d);
           });
         }
         els.hand.appendChild(d);
