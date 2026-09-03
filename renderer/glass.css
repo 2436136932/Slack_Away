@@ -497,3 +497,99 @@ html, body {
   background: rgba(198, 130, 122, calc(0.16 + 0.30 * var(--glass-alpha)));
   color: rgba(198, 130, 122, calc(0.55 + 0.35 * var(--stone-ink)));
 }
+
+/* ---------- 红中麻将（112 张 · 赖子百搭 · 无吃只碰杠） ---------- */
+.mj-root {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 6px; box-sizing: border-box;
+}
+.mj-opps { display: flex; gap: 4px; flex: none; }
+.mj-opp {
+  flex: 1;
+  border-radius: 8px; padding: 4px 2px;
+  text-align: center;
+  background: rgba(168, 172, 180, calc(0.03 + 0.08 * var(--glass-alpha)));
+  border: 1px solid rgba(120, 126, 138, calc(0.06 + 0.14 * var(--glass-alpha)));
+  transition: background 0.2s ease;
+}
+.mj-opp.active {
+  background: rgba(126, 144, 170, calc(0.10 + 0.22 * var(--glass-alpha)));
+  border-color: rgba(126, 144, 170, calc(0.30 + 0.35 * var(--glass-alpha)));
+}
+.mj-opp .nm {
+  font-size: 10px;
+  color: rgba(29, 29, 31, calc(0.28 + 0.32 * var(--stone-ink)));
+}
+.mj-opp .cnt {
+  font-size: 13px; font-weight: 600; font-family: var(--font);
+  color: rgba(29, 29, 31, calc(0.40 + 0.40 * var(--stone-ink)));
+}
+.mj-opp .mj-melds { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; margin: 2px 0; }
+.mj-chip {
+  font-size: 9px; padding: 1px 3px; border-radius: 4px;
+  background: rgba(126, 144, 170, calc(0.10 + 0.18 * var(--glass-alpha)));
+  color: rgba(29, 29, 31, calc(0.35 + 0.35 * var(--stone-ink)));
+}
+.mj-opp .last {
+  font-size: 9px;
+  color: rgba(29, 29, 31, calc(0.25 + 0.30 * var(--stone-ink)));
+}
+.mj-pool {
+  flex: 1;
+  min-height: 34px;
+  overflow-y: auto;
+  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
+  padding: 4px; border-radius: 8px;
+  background: rgba(168, 172, 180, calc(0.02 + 0.05 * var(--glass-alpha)));
+}
+.mj-meta {
+  flex: none; text-align: center; font-size: 10px;
+  color: rgba(29, 29, 31, calc(0.25 + 0.30 * var(--stone-ink)));
+}
+.mj-hand {
+  flex: none;
+  display: flex; gap: 2px; justify-content: center; flex-wrap: wrap;
+}
+.mj-actions { flex: none; display: flex; gap: 6px; justify-content: center; min-height: 0; }
+.mj-tile {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 36px;
+  border-radius: 4px;
+  font-size: 11px; font-weight: 600; font-family: var(--font);
+  user-select: none;
+  background: rgba(168, 172, 180, calc(0.06 + 0.18 * var(--glass-alpha)));
+  border: 1px solid rgba(120, 126, 138, calc(0.10 + 0.22 * var(--glass-alpha)));
+  color: rgba(29, 29, 31, calc(0.38 + 0.42 * var(--stone-ink)));
+}
+.mj-tile.sm { width: 17px; height: 24px; font-size: 8.5px; }
+.mj-tile.sm.mine { border-color: rgba(198, 130, 122, calc(0.25 + 0.30 * var(--glass-alpha))); }
+/* 花色：低饱和区分（万=砖粉，条=灰绿，筒=灰蓝），赖子红中偏红 */
+.mj-tile.s0 { color: rgba(168, 116, 112, calc(0.40 + 0.45 * var(--stone-ink))); }
+.mj-tile.s1 { color: rgba(112, 148, 132, calc(0.40 + 0.45 * var(--stone-ink))); }
+.mj-tile.s2 { color: rgba(112, 134, 168, calc(0.40 + 0.45 * var(--stone-ink))); }
+.mj-tile.lz {
+  color: rgba(198, 108, 100, calc(0.45 + 0.45 * var(--stone-ink)));
+  border-color: rgba(198, 108, 100, calc(0.20 + 0.30 * var(--glass-alpha)));
+}
+.mj-tile.pick { cursor: pointer; }
+.mj-tile.pick:hover {
+  background: rgba(126, 144, 170, calc(0.14 + 0.28 * var(--glass-alpha)));
+  transform: translateY(-2px);
+}
+.mj-tile.drawn {
+  margin-left: 5px;
+  border-color: rgba(126, 144, 170, calc(0.35 + 0.40 * var(--glass-alpha)));
+}
+.mj-btn {
+  border: 1px solid rgba(120, 126, 138, calc(0.12 + 0.20 * var(--glass-alpha)));
+  border-radius: 8px; padding: 4px 14px;
+  font-size: 11.5px; font-family: var(--font); cursor: pointer;
+  background: rgba(168, 172, 180, calc(0.04 + 0.10 * var(--glass-alpha)));
+  color: rgba(29, 29, 31, calc(0.45 + 0.40 * var(--stone-ink)));
+}
+.mj-btn.yes {
+  background: rgba(198, 130, 122, calc(0.14 + 0.26 * var(--glass-alpha)));
+  border-color: rgba(198, 130, 122, calc(0.35 + 0.35 * var(--glass-alpha)));
+}
+.mj-btn:hover { filter: brightness(1.08); }

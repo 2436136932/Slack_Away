@@ -335,10 +335,12 @@
     const prev = app.gameInst;
     if (prev && prev.destroy) prev.destroy();
     const def = window.GlassGames.get(id);
-    // flags.hasAI === false 的游戏（连连看/2048/扫雷）没有"对手"，隐藏模式切换和 LLM 设置
-    const hasAI = !def || !def.flags || def.flags.hasAI !== false;
-    $('#modeSeg').style.display = hasAI ? '' : 'none';
-    $('#btnLlm').style.display = hasAI ? '' : 'none';
+    // flags.hasAI === false：单人解谜（连连看/2048/扫雷），隐藏模式切换和 LLM 设置
+    // flags.llm === false：有本地 AI 但大模型模式无意义（麻将），同样隐藏
+    const f = (def && def.flags) || {};
+    const showMode = f.hasAI !== false && f.llm !== false;
+    $('#modeSeg').style.display = showMode ? '' : 'none';
+    $('#btnLlm').style.display = showMode ? '' : 'none';
     app.gameInst = window.GlassGames.activate(id, stage, ctx);
     settings.activeGame = id;
     persist({ activeGame: id });

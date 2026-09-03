@@ -302,6 +302,41 @@ function createWindow() {
               }
               console.log('[SMOKE] 2048 after-moves=' + await win.webContents.executeJavaScript(
                 "JSON.stringify(window.__smokeState())"));
+            } else if (t === '红中麻将') {
+              // 初始张数守恒校验：庄家 14 张 / 其余 13 张 / 牌墙 59
+              const init = JSON.parse(await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState())"));
+              console.log(`[SMOKE] 麻将 开局校验 hands=${JSON.stringify(init.hands)} wall=${init.wall}`
+                + ` (期望 hands=[14,13,13,13] wall=59)`);
+              // 连打 3 局（座位 0 也用 AI 策略，碰杠全接），统计胡家分布
+              let huSeats = [], drew = 0;
+              for (let g = 0; g < 3; g++) {
+                let steps = 0, last = null;
+                for (; steps < 400; steps++) {
+                  const st = JSON.parse(await win.webContents.executeJavaScript(
+                    "JSON.stringify(window.__smokeState())"));
+                  last = st;
+                  if (st.phase === 'over') break;
+                  if (st.canDiscard) await win.webContents.executeJavaScript("window.__mjPlayAsBot()");
+                  else if (st.pending) await win.webContents.executeJavaScript("window.__mjClaim(true)");
+                  await new Promise(r => setTimeout(r, 60));
+                }
+                huSeats.push(last.winner);
+                if (last.winner === -1) drew++;
+                console.log(`[SMOKE] 麻将 第${g + 1}局 ${steps} 步: 胡家=${last.winner}`
+                  + ` 牌墙剩 ${last.wall} 副露=${JSON.stringify(last.melds)} 牌河=${last.pool}`);
+                // 开下一局
+                await win.webContents.executeJavaScript(`document.getElementById('btnNew').click()`);
+                await new Promise(r => setTimeout(r, 300));
+              }
+              console.log(`[SMOKE] 麻将 3 局结果: 胡家=${JSON.stringify(huSeats)} 流局 ${drew} 次`);
+              // 悔棋：收回最后打出的一张
+              await win.webContents.executeJavaScript("window.__mjDiscard(0)");
+              await new Promise(r => setTimeout(r, 200));
+              await win.webContents.executeJavaScript(`document.getElementById('btnUndo').click()`);
+              await new Promise(r => setTimeout(r, 200));
+              console.log('[SMOKE] 麻将 after-undo=' + await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState())"));
             } else if (t === '扫雷') {
               const opened = await win.webContents.executeJavaScript(
                 "window.__mnOpen ? String(window.__mnOpen()) : 'no-hook'");
