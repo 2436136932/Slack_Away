@@ -112,6 +112,8 @@
     let els = {};
     let onHandClick = null;
     let claimDeadline = 0, claimTick = null;   // 碰/杠倒计时自动过
+    let roundInCircle = 0;                    // 第几局（一圈 4 局，东南西北轮庄）
+    let stats = { games: 0, win: 0, selfDraw: 0, total: 0 };   // 本地统计
 
     /* ---------- 建牌墙 / 发牌 ---------- */
     function buildWall() {
@@ -134,6 +136,18 @@
       }
     }
 
+    /** 本地统计：localStorage 持久化（重启保留） */
+    function loadStats() {
+      try {
+        const raw = localStorage.getItem('glassmj-stats');
+        if (raw) { const o = JSON.parse(raw); if (o.games != null) stats = o; }
+      } catch (e) {}
+      return stats;
+    }
+    function saveStats() {
+      try { localStorage.setItem('glassmj-stats', JSON.stringify(stats)); } catch (e) {}
+    }
+
     function newGame() {
       wall = buildWall();
       players = [0, 1, 2, 3].map(i => ({
@@ -145,6 +159,10 @@
       players[banker].concealed.push(wall.pop());   // 庄家 14 张
       players.forEach(sortHand);
       turnIdx = banker; winner = -1; winTile = -1; selfDrawWin = false;
+      // 一圈四局轮庄：东南西北各家轮流坐庄，第 5 局起回到第 0 庄家
+      if (roundInCircle >= 4) roundInCircle = 0;
+      banker = roundInCircle % 4;
+      roundInCircle++;
       pending = null; claimQueue = []; drawn = null; undoStack = [];
       // 必须先清掉上一局的 over，否则 beginTurn 开头的守卫会直接 return，新局卡死
       phase = 'idle';
@@ -448,7 +466,8 @@
       });
       els.lastPoolTile = pool.length ? els.pool.lastChild : null;
       // 元信息
-      els.meta.textContent = `牌墙 ${wall.length} · 赖子 中 · 难度 ${diff === 'easy' ? '简单' : diff === 'hard' ? '困难' : '中等'}`;
+      const circleTxt = ['东', '南', '西', '北'][(roundInCircle - 1) % 4] || '东';
+      els.meta.textContent = `牌墙 ${wall.length} · 赖子 中 · 第${Math.ceil(roundInCircle / 4)}圈·${circleTxt}家坐庄 · 难度 ${diff === 'easy' ? '简单' : diff === 'hard' ? '困难' : '中等'} · 你 ${stats.win}胜/${stats.games}局 (自摸${stats.selfDraw})`;
       // 我的副露（真实牌张，不再是文字 chip）
       els.mymeld.innerHTML = '';
       const me0 = players[0];
@@ -696,12 +715,20 @@
 
     function endGame(seat, tile, self) {
       phase = 'over'; winner = seat; winTile = tile == null ? -1 : tile; selfDrawWin = !!self;
+      // 统计：胜率 / 自摸数（流局不计局数）
+      if (seat >= 0) {
+        stats.games++;
+        if (seat === 0) { stats.win++; if (self) stats.selfDraw++; }
+        stats.total++;
+        saveStats();
+      }
       render();
       if (seat === -1) ctx.setStatus('流局了（牌墙摸完），点新局再来');
       else {
         showHuView(seat, tile, self);      // 胡牌定格：摊牌 + 番型
-        if (seat === 0) ctx.setStatus(self ? '自摸！你胡了（低调收好）' : '你胡了！（低调收好）');
-        else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？`);
+        const circleDone = roundInCircle >= 3;
+        if (seat === 0) ctx.setStatus((self ? '自摸！你胡了' : '你胡了！') + (circleDone ? '（一圈打完，点新局开始新圈）' : '（低调收好）'));
+        else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？` + (circleDone ? '（一圈打完）' : ''));
       }
       if (ctx.onGameEnd) ctx.onGameEnd(seat === 0 ? 'player' : 'ai');
     }
@@ -710,6 +737,7 @@
       mount(el, appCtx) {
         root = el; ctx = appCtx;
         buildDom();
+        loadStats();
         newGame();
         window.__smokeState = () => ({
           phase, turn: turnIdx, wall: wall.length, winner,
@@ -727,6 +755,8 @@
           canAnGang: findQuad(players[0]) >= 0,
           canBuGang: players[0].melds.some(m => m.type === 'peng' && !m.bugang
             && players[0].concealed.indexOf(m.tile) >= 0),
+          round: roundInCircle,
+          stats: { ...stats },
         });
         window.__mjDiscard = (i) => {
           if (phase !== 'turn' || turnIdx !== 0) return 'not-your-turn';
