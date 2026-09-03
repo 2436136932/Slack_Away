@@ -1,0 +1,39 @@
+{
+  "name": "glass-games",
+  "version": "1.0.0",
+  "description": "桌面透明玻璃摸鱼小游戏集（五子棋 / 象棋）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:portable": "electron-builder --win portable",
+    "dist:zip": "electron-builder --win zip"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.yuweijie.glassgames",
+    "productName": "摸鱼玻璃小局",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "!renderer/.gitkeep"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "artifactName": "摸鱼玻璃小局-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "摸鱼玻璃小局-${version}.exe",
+      "unpackDirName": false
+    },
+    "compression": "maximum"
+  }
+}

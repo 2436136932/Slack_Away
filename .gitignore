@@ -1,0 +1,13 @@
+# 依赖与构建产物
+node_modules/
+dist/
+*.zip
+
+# 打包中间产物
+*.blockmap
+builder-debug.yml
+.win-unpacked*
+
+# 系统文件
+Thumbs.db
+.DS_Store

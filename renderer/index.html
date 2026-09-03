@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+  <title>工作台</title>
+  <link rel="stylesheet" href="glass.css">
+</head>
+<body>
+  <div id="card">
+    <!-- 标题栏：伪装成工作页面（隐身④） -->
+    <div id="titlebar">
+      <div class="logo"></div>
+      <div class="title" id="fakeTitle">工作台 · 本周排期表.xlsx - 只读</div>
+      <button class="iconbtn" id="btnHide" title="隐藏 (Alt+G 呼出)">—</button>
+    </div>
+
+    <!-- 游戏选择顶栏（注册表自动生成） -->
+    <div id="gameTabs"></div>
+
+    <!-- 工具条：难度 / 新局 / 对手模式 / LLM 设置 -->
+    <div id="toolbar">
+      <div class="seg" id="diffSeg">
+        <button data-diff="easy">简单</button>
+        <button data-diff="medium" class="active">中等</button>
+        <button data-diff="hard">困难</button>
+      </div>
+      <div class="seg" id="modeSeg">
+        <button data-mode="local" class="active">本地AI</button>
+        <button data-mode="llm">大模型</button>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn" id="btnUndo" title="悔棋（撤销玩家 + AI 最近各一步）">↶ 悔棋</button>
+      <button class="btn" id="btnNew">新局</button>
+      <button class="btn" id="btnLlm" title="大模型 API 设置">⚙</button>
+    </div>
+
+    <!-- 游戏舞台 -->
+    <div id="stage"></div>
+
+    <!-- 状态栏 -->
+    <div id="statusbar">就绪</div>
+
+    <!-- 底部透明度滑块（招牌功能：联动棋子透明度） -->
+    <div id="bottombar">
+      <label>透明</label>
+      <input type="range" id="alphaSlider" min="0" max="100" value="45">
+      <label>实体</label>
+      <button id="btnGhost" class="on" title="幽灵模式：鼠标移开后淡到 3.5%，几乎只剩轮廓（Alt+H 切换）">👻</button>
+    </div>
+    <div id="inkbar">
+      <label>墨色</label>
+      <input type="range" id="inkSlider" min="0" max="100" value="45"
+             title="棋子/棋盘的颜色浓度：0 = 全灰（最不显眼），100 = 用足颜色（最清晰）">
+      <label>鲜明</label>
+    </div>
+
+    <div id="resizeHandle"></div>
+
+    <!-- LLM 设置面板 -->
+    <div id="llmPanel">
+      <div class="panel">
+        <h3>大模型 API 设置（OpenAI 兼容）</h3>
+        <div class="row">
+          <label>API Base URL</label>
+          <input type="text" id="llmUrl" placeholder="https://api.deepseek.com/v1">
+        </div>
+        <div class="row">
+          <label>API Key</label>
+          <input type="password" id="llmKey" placeholder="sk-...">
+        </div>
+        <div class="row">
+          <label>模型名</label>
+          <div class="model-row">
+            <div class="model-picker">
+              <input type="text" id="llmModel" placeholder="手动输入或点击 ▾ 选择">
+              <button class="mp-toggle" id="llmModelToggle" type="button" title="展开 / 收起模型列表">▾</button>
+              <div id="llmModelPanel" class="model-panel" hidden></div>
+            </div>
+            <button class="btn primary" id="llmGetModels" type="button" title="按当前 URL+Key 拉取模型列表">获取模型</button>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn" id="llmCancel">取消</button>
+          <button class="btn primary" id="llmSave">保存</button>
+        </div>
+        <div class="hint">走你自建 New API / 官方 OpenAI 兼容接口都行。大模型走棋失败时自动回退本地 AI，不会卡局。</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="core/registry.js"></script>
+  <script src="vendor/xiangqi.js"></script>
+  <script src="games/gomoku.js"></script>
+  <script src="games/xiangqi-game.js"></script>
+  <script src="core/app.js"></script>
+</body>
+</html>
