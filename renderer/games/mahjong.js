@@ -427,7 +427,11 @@
           <div class="mj-pool"><div class="mj-pool-in"></div></div>
           <div class="mj-pos pos-right" data-s="3"></div>
         </div>
-        <div class="mj-meta"></div>
+        <div class="mj-meta-row">
+          <div class="mj-meta"></div>
+          <button class="mj-cbtn" title="记牌器：显示各家已打出的牌，剩余张数一目了然">记</button>
+        </div>
+        <div class="mj-counter" hidden></div>
         <div class="mj-handrow">
           <div class="mj-mymeid"></div>
           <div class="mj-hand"></div>
@@ -446,6 +450,8 @@
         pool: wrap.querySelector('.mj-pool'),
         poolIn: wrap.querySelector('.mj-pool-in'),
         meta: wrap.querySelector('.mj-meta'),
+        cbtn: wrap.querySelector('.mj-cbtn'),
+        counter: wrap.querySelector('.mj-counter'),
         mymeld: wrap.querySelector('.mj-mymeid'),
         hand: wrap.querySelector('.mj-hand'),
         actions: wrap.querySelector('.mj-actions'),
@@ -453,6 +459,12 @@
         huview: wrap.querySelector('.mj-huview'),
         result: wrap.querySelector('.mj-result'),
       };
+      // 记牌器开关
+      els.cbtn.addEventListener('click', () => {
+        counterOn = !counterOn;
+        els.cbtn.classList.toggle('on', counterOn);
+        renderCounter();
+      });
     }
 
     function tileEl(t, cls) {
@@ -491,17 +503,42 @@
       if (claimTick) { clearInterval(claimTick); claimTick = null; }
     }
     function startClaimTick() {
+      // 玩家碰/杠不再倒计时自动过（摸鱼场景 6s 来不及，改成无限等待）
+      // 保留 clearClaimTick 兼容旧调用；若将来要开启，取消注释即可
       clearClaimTick();
-      claimDeadline = Date.now() + 6000;
-      claimTick = setInterval(() => {
-        const left = Math.max(0, Math.ceil((claimDeadline - Date.now()) / 1000));
-        const btn = els.actions ? els.actions.querySelector('.mj-btn.no') : null;
-        if (btn) btn.textContent = '过 (' + left + 's)';
-        if (Date.now() >= claimDeadline) {
-          clearClaimTick();
-          humanClaim(false);            // 超时自动过
+      claimDeadline = 0;
+      if (claimTick) { clearInterval(claimTick); claimTick = null; }
+      const btn = els.actions ? els.actions.querySelector('.mj-btn.no') : null;
+      if (btn) btn.textContent = '过';
+    }
+
+    /** 记牌器：27 种真牌各剩几张（总 4×4=108 - 已现 - 手牌 - 副露 - 墙外未知=0 简化版）
+     *  公式：剩余 = 4 - 场上可见张数（牌河+副露+各家手牌已知部分不可见→只算 已打出+已副露+自己手牌+自己副露） */
+    let counterOn = true;
+    function renderCounter() {
+      const el = els.counter;
+      if (!el) return;
+      el.hidden = !counterOn;
+      if (!counterOn) return;
+      // 统计场上"明牌"：各牌河的牌 + 各家副露
+      const seen = new Array(28).fill(0);
+      for (let s2 = 0; s2 < 4; s2++) {
+        for (const t of players[s2].discards) seen[t]++;
+        for (const m of players[s2].melds) seen[m.tile] += m.type === 'gang' ? 4 : 3;
+      }
+      // 自己的手牌也算"可见"（自己知道）
+      for (const t of players[0].concealed) seen[t]++;
+      let html = '';
+      for (let suit = 0; suit < 3; suit++) {
+        const suitName = ['万', '条', '筒'][suit];
+        html += '<span class="ct-suit">' + suitName + '</span>';
+        for (let n = 1; n <= 9; n++) {
+          const t = suit * 9 + (n - 1);
+          const left = 4 - Math.min(4, seen[t]);
+          html += '<span class="ct-t' + (left === 0 ? ' none' : '') + '">' + n + '<i>' + left + '</i></span>';
         }
-      }, 250);
+      }
+      el.innerHTML = html;
     }
 
     function render() {
@@ -603,6 +640,7 @@
       if (drawnIdx >= 0) {
         els.hand.appendChild(mkTile(me.concealed[drawnIdx], drawnIdx, 'drawn'));
       }
+      renderCounter();
       // 操作按钮（优先级：胡 > 杠 > 碰 > 过；碰/杠可用时都能点）
       els.actions.innerHTML = '';
       // 玩家自摸：只有「胡」按钮
@@ -932,6 +970,9 @@
           round: roundInCircle,
           stats: { ...stats },
           score: score.slice(),
+          counterOn: counterOn,
+          counterTiles: els.counter ? els.counter.querySelectorAll('.ct-t').length : 0,
+          claimBtnText: els.actions ? (els.actions.querySelector('.mj-btn.no') || {}).textContent : '',
         });
         window.__mjDiscard = (i) => {
           if (phase !== 'turn' || turnIdx !== 0) return 'not-your-turn';

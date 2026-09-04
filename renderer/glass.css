@@ -876,3 +876,67 @@ html, body {
 .mj-rs-row .name { flex: 1; text-align: left; }
 .mj-rs-row .pts { font-weight: 500; }
 .mj-rscard .mj-btn.yes { margin-top: 10px; width: 100%; }
+
+/* ---------- 麻将记牌器 + meta 行 + 小屏自适应 ---------- */
+.mj-root { container-type: inline-size; }   /* 小屏自适应基准 */
+.mj-meta-row {
+  flex: none;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  position: relative;
+}
+.mj-cbtn {
+  border: 1px solid rgba(120, 126, 138, calc(0.14 + 0.20 * var(--glass-alpha)));
+  border-radius: 7px;
+  background: var(--ui-bg);
+  color: var(--ui-text-dim);
+  font-size: 10.5px; font-weight: 600; font-family: var(--font);
+  width: 20px; height: 20px; line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.mj-cbtn:hover { background: var(--ui-bg-hover); color: var(--ui-text); }
+.mj-cbtn.on { background: var(--ui-active-bg); color: var(--ui-active-text); }
+/* 记牌器条：万/条/筒 + 各张剩余数 */
+.mj-counter {
+  flex: none;
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 1px 5px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  background: rgba(168, 172, 180, calc(0.03 + 0.06 * var(--glass-alpha)));
+  font-size: 9.5px;
+}
+.mj-counter[hidden] { display: none; }
+.mj-counter .ct-suit {
+  font-size: 9px; font-weight: 600;
+  color: rgba(29, 29, 31, calc(0.30 + 0.34 * var(--stone-ink)));
+}
+.mj-counter .ct-t {
+  display: inline-flex; align-items: baseline; gap: 1px;
+  font-family: var(--font);
+  color: rgba(29, 29, 31, calc(0.42 + 0.42 * var(--stone-ink)));
+}
+.mj-counter .ct-t i {
+  font-style: normal; font-size: 8px;
+  color: rgba(126, 144, 170, calc(0.5 + 0.4 * var(--stone-ink)));
+}
+.mj-counter .ct-t.none { opacity: 0.3; }
+.mj-counter .ct-t.none i { color: rgba(198, 108, 100, calc(0.45 + 0.4 * var(--stone-ink))); }
+
+/* 小屏自适应：窗口缩小到 ~400px 内，麻将整体收缩 */
+@container (max-width: 400px) {
+  .mj-tile { width: 22px; height: 30px; font-size: 9.5px; }
+  .mj-tile.sm { width: 13px; height: 18px; font-size: 7px; }
+  .mj-tile.mini { width: 14px; height: 19px; font-size: 7px; }
+  .mj-pos.pos-top { min-width: 76px; }
+  .mj-pos.pos-left, .mj-pos.pos-right { min-width: 56px; }
+  .mj-pos { padding: 2px 3px; }
+  .mj-pos .nm { font-size: 9px; }
+  .mj-pos .cnt { font-size: 11px; }
+  .mj-hand { gap: 1px; }
+  .mj-hand .mj-grp + .mj-grp { margin-left: 4px; }
+  .mj-meta { font-size: 9px; }
+  .mj-pool-in { gap: 1px; padding: 2px; }
+  .mj-handrow { min-height: 34px; gap: 5px; }
+  .mj-counter { font-size: 8.5px; padding: 1px 6px; }
+}
