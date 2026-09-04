@@ -10,29 +10,18 @@
   <div id="card">
     <!-- 标题栏：伪装成工作页面（隐身④） -->
     <div id="titlebar">
+      <button class="iconbtn" id="btnMenu" title="菜单">☰</button>
       <div class="logo"></div>
       <div class="title" id="fakeTitle">工作台 · 本周排期表.xlsx - 只读</div>
       <button class="iconbtn" id="btnHide" title="隐藏 (Alt+G 呼出)">—</button>
     </div>
 
-    <!-- 游戏选择顶栏（注册表自动生成） -->
-    <div id="gameTabs"></div>
-
-    <!-- 工具条：难度 / 新局 / 对手模式 / LLM 设置 -->
+    <!-- 常驻工具条：当前游戏 + 悔棋 / 新局 -->
     <div id="toolbar">
-      <div class="seg" id="diffSeg">
-        <button data-diff="easy">简单</button>
-        <button data-diff="medium" class="active">中等</button>
-        <button data-diff="hard">困难</button>
-      </div>
-      <div class="seg" id="modeSeg">
-        <button data-mode="local" class="active">本地AI</button>
-        <button data-mode="llm">大模型</button>
-      </div>
+      <div class="curgame" id="curGameName">五子棋</div>
       <div class="spacer"></div>
       <button class="btn" id="btnUndo" title="悔棋（撤销玩家 + AI 最近各一步）">↶ 悔棋</button>
       <button class="btn" id="btnNew">新局</button>
-      <button class="btn" id="btnLlm" title="大模型 API 设置">⚙</button>
     </div>
 
     <!-- 游戏舞台 -->
@@ -41,21 +30,41 @@
     <!-- 状态栏 -->
     <div id="statusbar">就绪</div>
 
-    <!-- 底部透明度滑块（招牌功能：联动棋子透明度） -->
-    <div id="bottombar">
-      <label>透明</label>
-      <input type="range" id="alphaSlider" min="0" max="100" value="45">
-      <label>实体</label>
-      <button id="btnGhost" class="on" title="幽灵模式：鼠标移开后淡到 3.5%，几乎只剩轮廓（Alt+H 切换）">👻</button>
-    </div>
-    <div id="inkbar">
-      <label>墨色</label>
-      <input type="range" id="inkSlider" min="0" max="100" value="45"
-             title="棋子/棋盘的颜色浓度：0 = 全灰（最不显眼），100 = 用足颜色（最清晰）">
-      <label>鲜明</label>
-    </div>
-
     <div id="resizeHandle"></div>
+
+    <!-- 汉堡抽屉：游戏列表 + 设置（左侧滑出） -->
+    <div id="drawerMask" hidden></div>
+    <aside id="drawer" aria-label="菜单">
+      <div class="dr-head">摸鱼玻璃小局</div>
+      <div class="dr-sec">游戏</div>
+      <div id="drawerGames"></div>
+      <div class="dr-sec">对手</div>
+      <div class="seg" id="modeSeg">
+        <button data-mode="local" class="active">本地AI</button>
+        <button data-mode="llm">大模型</button>
+      </div>
+      <div class="dr-sec">难度</div>
+      <div class="seg" id="diffSeg">
+        <button data-diff="easy">简单</button>
+        <button data-diff="medium" class="active">中等</button>
+        <button data-diff="hard">困难</button>
+      </div>
+      <div class="dr-sec">大模型</div>
+      <button class="btn dr-btn" id="btnLlm">⚙ 配置 API</button>
+      <div class="dr-sec">玻璃</div>
+      <div class="dr-slider">
+        <label>透明</label>
+        <input type="range" id="alphaSlider" min="0" max="100" value="45">
+        <label>实体</label>
+      </div>
+      <div class="dr-slider">
+        <label>墨色</label>
+        <input type="range" id="inkSlider" min="0" max="100" value="45"
+               title="棋子/棋盘的颜色浓度：0 = 全灰（最不显眼），100 = 用足颜色（最清晰）">
+        <label>鲜明</label>
+      </div>
+      <button class="btn dr-btn" id="btnGhost" class2="on" title="幽灵模式：鼠标移开后淡到 3.5%（Alt+H 切换）">👻 幽灵模式</button>
+    </aside>
 
     <!-- LLM 设置面板 -->
     <div id="llmPanel">

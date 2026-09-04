@@ -137,7 +137,7 @@ function createWindow() {
           return JSON.stringify({
             games: window.GlassGames ? window.GlassGames.list().map(function (g) { return g.id; }).join(',') : 'NO_REGISTRY',
             active: window.GlassGames && window.GlassGames.active ? window.GlassGames.active.id : 'none',
-            tabs: document.querySelectorAll('#gameTabs .tab').length,
+            tabs: document.querySelectorAll('#drawerGames .dr-game').length,
             canvas: s ? s.querySelectorAll('canvas').length : -1,
             status: (document.getElementById('statusbar') || {}).textContent || ''
           });
@@ -145,16 +145,51 @@ function createWindow() {
         console.log('[SMOKE] gomoku ' + await read());
         await shot('smoke-1-gomoku.png');
 
-        // 切到象棋 tab（第 2 个）
-        await win.webContents.executeJavaScript(
-          'document.querySelectorAll("#gameTabs .tab")[1].click()');
+        // 汉堡抽屉专项：打开 → 检查状态 → 截图 → 关闭
+        await win.webContents.executeJavaScript(`(function () {
+          document.getElementById('btnMenu').click();
+          return 1;
+        })()`);
+        await new Promise(r => setTimeout(r, 350));
+        const drawerInfo = await win.webContents.executeJavaScript(`(function () {
+          var d = document.getElementById('drawer');
+          return JSON.stringify({
+            open: d.classList.contains('open'),
+            games: document.querySelectorAll('#drawerGames .dr-game').length,
+            modeSeg: !!document.querySelector('#drawer #modeSeg'),
+            diffSeg: !!document.querySelector('#drawer #diffSeg'),
+            alpha: !!document.querySelector('#drawer #alphaSlider'),
+            ink: !!document.querySelector('#drawer #inkSlider'),
+            ghost: !!document.querySelector('#drawer #btnGhost'),
+            llm: !!document.querySelector('#drawer #btnLlm'),
+            cur: (document.getElementById('curGameName') || {}).textContent || ''
+          });
+        })()`);
+        console.log('[SMOKE] drawer ' + drawerInfo);
+        await shot('smoke-drawer-汉堡菜单.png');
+        await win.webContents.executeJavaScript(`(function () {
+          document.getElementById('drawerMask').click();
+          return 1;
+        })()`);
+        await new Promise(r => setTimeout(r, 300));
+
+        // 切到象棋（开抽屉点游戏）
+        await win.webContents.executeJavaScript(`(function () {
+          document.getElementById('btnMenu').click();
+          var btns = document.querySelectorAll('#drawerGames .dr-game');
+          for (var i = 0; i < btns.length; i++) if (btns[i].title === '象棋') { btns[i].click(); break; }
+          return 1;
+        })()`);
         await new Promise(r => setTimeout(r, 700));
         console.log('[SMOKE] xiangqi ' + await read());
         await shot('smoke-2-xiangqi.png');
 
         // 五子棋落子交互：点天元 (7,7)，等本地 AI 回应
         await win.webContents.executeJavaScript(`(function () {
-          document.querySelectorAll("#gameTabs .tab")[0].click();
+          document.getElementById('btnMenu').click();
+          var btns = document.querySelectorAll('#drawerGames .dr-game');
+          for (var i = 0; i < btns.length; i++) if (btns[i].title === '五子棋') { btns[i].click(); break; }
+          return 1;
         })()`);
         await new Promise(r => setTimeout(r, 500));
         const clickGomoku = await win.webContents.executeJavaScript(`(function () {
@@ -245,8 +280,8 @@ function createWindow() {
           var i = document.getElementById('inkSlider');
           i.value = 100;
           i.dispatchEvent(new Event('input', { bubbles: true }));
-          var tabs = document.querySelectorAll('#gameTabs .tab');
-          if (tabs[1]) tabs[1].click();
+          var btns = document.querySelectorAll('#drawerGames .dr-game');
+          for (var i = 0; i < btns.length; i++) if (btns[i].title === '象棋') { btns[i].click(); break; }
           return 'xiangqi-ink100';
         })()`);
         await new Promise(r => setTimeout(r, 600));
@@ -265,13 +300,17 @@ function createWindow() {
             return 1;
           })()`);
           const tabs = JSON.parse(await win.webContents.executeJavaScript(
-            `JSON.stringify(Array.prototype.map.call(document.querySelectorAll('#gameTabs .tab'),
+            `JSON.stringify(Array.prototype.map.call(document.querySelectorAll('#drawerGames .dr-game'),
               function (b, i) { return { i: i, title: b.title }; }))`));
           for (const tab of tabs) {
             const t = tab.title;
             if (t === '五子棋' || t === '象棋') continue;    // 前面已验证过
-            await win.webContents.executeJavaScript(
-              `document.querySelectorAll('#gameTabs .tab')[${tab.i}].click()`);
+            await win.webContents.executeJavaScript(`(function () {
+              document.getElementById('btnMenu').click();
+              var btns = document.querySelectorAll('#drawerGames .dr-game');
+              for (var i = 0; i < btns.length; i++) if (btns[i].title === '${t}') { btns[i].click(); break; }
+              return 1;
+            })()`);
             await new Promise(r => setTimeout(r, 500));
             const st = await win.webContents.executeJavaScript(
               "window.__smokeState ? JSON.stringify(window.__smokeState()) : 'null'");

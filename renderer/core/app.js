@@ -315,18 +315,48 @@
     },
   };
 
-  /* ---------- 游戏顶栏（注册表自动生成） ---------- */
-  function buildTabs() {
-    const tabs = $('#gameTabs');
-    tabs.innerHTML = '';
+  /* ---------- 汉堡抽屉：游戏列表 + 设置 ---------- */
+  const drawer = $('#drawer');
+  const drawerMask = $('#drawerMask');
+  function openDrawer() {
+    drawer.classList.add('open');
+    drawerMask.hidden = false;
+  }
+  function closeDrawer() {
+    drawer.classList.remove('open');
+    drawerMask.hidden = true;
+  }
+  $('#btnMenu').addEventListener('click', () => {
+    if (drawer.classList.contains('open')) closeDrawer(); else openDrawer();
+  });
+  drawerMask.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) closeDrawer();
+  });
+
+  function buildDrawer() {
+    const box = $('#drawerGames');
+    box.innerHTML = '';
     window.GlassGames.list().forEach(g => {
       const b = document.createElement('button');
-      b.className = 'tab' + (g.id === settings.activeGame ? ' active' : '');
+      b.className = 'dr-game' + (g.id === settings.activeGame ? ' active' : '');
       b.title = g.name;
-      b.textContent = g.icon;
-      b.addEventListener('click', () => activateGame(g.id));
-      tabs.appendChild(b);
+      const ic = document.createElement('span');
+      ic.className = 'dr-ic';
+      ic.textContent = g.icon;
+      const nm = document.createElement('span');
+      nm.textContent = g.name;
+      b.appendChild(ic);
+      b.appendChild(nm);
+      b.addEventListener('click', () => {
+        activateGame(g.id);
+        closeDrawer();
+      });
+      box.appendChild(b);
     });
+    // 常驻栏当前游戏名
+    const cur = window.GlassGames.get(settings.activeGame);
+    $('#curGameName').textContent = cur ? cur.name : '';
   }
 
   let app = { gameInst: null };
@@ -344,7 +374,7 @@
     app.gameInst = window.GlassGames.activate(id, stage, ctx);
     settings.activeGame = id;
     persist({ activeGame: id });
-    buildTabs();
+    buildDrawer();
     // 让新游戏感知当前难度/模式
     if (app.gameInst.onDiffChange) app.gameInst.onDiffChange(settings.difficulty);
     if (app.gameInst.onModeChange) app.gameInst.onModeChange(settings.mode);
@@ -375,7 +405,7 @@
         return;
       }
       if (!window.GlassGames.get(settings.activeGame)) settings.activeGame = window.GlassGames.list()[0].id;
-      buildTabs();
+      buildDrawer();
       activateGame(settings.activeGame);
     } catch (err) {
       // 任何启动错误都显示在状态栏，避免白屏无提示
