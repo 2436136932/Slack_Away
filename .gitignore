@@ -2,6 +2,7 @@
 node_modules/
 dist/
 *.zip
+.workbuddy/trash/
 
 # 打包中间产物
 *.blockmap
