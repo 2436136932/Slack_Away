@@ -17,6 +17,8 @@
   const LAIZI = 27;
   const SUIT_CN = ['万', '条', '筒'];
   const SEAT_NAME = ['你', '下家', '对面', '上家'];
+  const SEAT_ALIAS = ['你', '阿康', '老王', '阿丽'];      // 对手昵称（更生动）
+  const SEAT_COLOR = ['', '#7E90AA', '#C6837A', '#7FA38C']; // 头像圆点色（低饱和）
 
   function tileLabel(t) {
     if (t === LAIZI) return '中';
@@ -455,7 +457,11 @@
         const p = players[s];
         el.className = 'mj-pos pos-' + (s === 2 ? 'top' : s === 1 ? 'left' : 'right')
           + (turnIdx === s && phase !== 'over' ? ' active' : '');
-        let h = `<div class="nm">${SEAT_NAME[s]}</div>
+        const dir = s === 2 ? 'top' : s === 1 ? 'left' : 'right';
+        const backs = '<span class="bk"></span>'.repeat(3);
+        let h = `<div class="bks b-${dir}">${backs}</div>
+                 <div class="avatar" style="background:${SEAT_COLOR[s]}"></div>
+                 <div class="nm">${SEAT_ALIAS[s]}</div>
                  <div class="cnt">${p.concealed.length + meldTiles(p)}张</div>`;
         if (p.melds.length) {
           h += '<div class="mj-melds">' + p.melds.map(m =>
@@ -477,7 +483,7 @@
         z.className = 'mj-zone z' + s;
         zones[s].forEach((x, i) => {
           const isLast = i === zones[s].length - 1 && s === lastSeat && phase !== 'over';
-          z.appendChild(tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh' : '')));
+          z.appendChild(tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh pop' : '')));
         });
         els.poolIn.appendChild(z);
       });

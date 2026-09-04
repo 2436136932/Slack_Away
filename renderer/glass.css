@@ -799,3 +799,40 @@ html, body {
 .mj-hand .mj-grp + .mj-grp {
   margin-left: 8px;
 }
+
+/* ---------- 麻将四方桌视觉增强二期：牌背朝向 + 头像 + 微弹 ---------- */
+.mj-pos { position: relative; }
+.mj-pos .bks {
+  display: flex; justify-content: center; gap: 2px;
+  margin-bottom: 3px;
+}
+.mj-pos .bk {
+  display: inline-block;
+  width: 10px; height: 14px;
+  border-radius: 2px;
+  background: linear-gradient(135deg,
+    rgba(126, 144, 170, calc(0.25 + 0.35 * var(--glass-alpha))),
+    rgba(126, 144, 170, calc(0.10 + 0.20 * var(--glass-alpha))));
+  border: 1px solid rgba(120, 126, 138, calc(0.12 + 0.20 * var(--glass-alpha)));
+  transform-origin: center;
+}
+/* 牌背朝向中央：左家立起朝右 / 上家倒置朝下 / 右家立起朝左 */
+.mj-pos .bks.b-left .bk { transform: rotate(90deg); }
+.mj-pos .bks.b-top .bk { transform: rotate(180deg); }
+.mj-pos .bks.b-right .bk { transform: rotate(-90deg); }
+.mj-pos .avatar {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin: 0 auto 2px;
+  box-shadow: 0 0 0 1px rgba(120, 126, 138, calc(0.2 + 0.3 * var(--glass-alpha)));
+}
+
+/* 出牌/摸牌落位微弹（0.18s 弹性，摸鱼不夸张） */
+.mj-tile.pop {
+  animation: mjPop 0.18s ease-out;
+}
+@keyframes mjPop {
+  0% { transform: scale(0.85); }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
