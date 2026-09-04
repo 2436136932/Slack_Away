@@ -376,7 +376,8 @@ function createWindow() {
                     }
                     break;
                   }
-                  if (st.canDiscard) await win.webContents.executeJavaScript("window.__mjPlayAsBot()");
+                  if (st.win) await win.webContents.executeJavaScript("window.__mjWin()");      // 玩家自摸：点胡
+                  else if (st.canDiscard) await win.webContents.executeJavaScript("window.__mjPlayAsBot()");
                   else if (st.pending) await win.webContents.executeJavaScript("window.__mjClaim(true)");
                   await new Promise(r => setTimeout(r, 60));
                 }

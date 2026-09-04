@@ -74,10 +74,24 @@
   }
 
   /** 暗牌 tiles（含刚摸的那张）+ 已有 meldCount 副 → 是否成胡 */
+  /** 七对判定：无副露 14 张，能分成 7 对（赖子可补，4 张同牌算两对） */
+  function isSevenPairs(c, lz) {
+    let pairs = 0, lz2 = lz;
+    for (let k = 0; k < 27; k++) {
+      if (c[k] >= 4) { pairs += 2; c[k] -= 4; }
+      if (c[k] >= 2) { pairs += 1; c[k] -= 2; }
+      if (c[k] === 1 && lz2 >= 1) { pairs += 1; lz2 -= 1; }
+    }
+    if (lz2 >= 2) pairs += 1;
+    return pairs >= 7;
+  }
+
   function canWinTiles(tiles, meldCount) {
     const need = 4 - meldCount;
     if (tiles.length !== need * 3 + 2) return false;
     const { c, lz } = countTiles(tiles);
+    // 七对 / 龙七对：无副露且能分成 7 对
+    if (meldCount === 0 && tiles.length === 14 && isSevenPairs(c.slice(), lz)) return true;
     // 试每种真牌做将
     for (let p = 0; p < 27; p++) {
       if (c[p] >= 2) {
@@ -105,7 +119,7 @@
   function factory() {
     let root, ctx = null, diff = 'medium', mode = 'local';
     let wall = [], players = [], turnIdx = 0, banker = 0;
-    let phase = 'idle';          // idle | turn | claim | over
+    let phase = 'idle';          // idle | turn | claim | win(玩家自摸待结算) | over
     let drawn = null;            // 刚摸到的牌 { seat, tile }
     let pending = null;          // 玩家待决策的碰/杠/胡
     let claimQueue = [], claimTile = -1, claimFrom = -1;
@@ -171,6 +185,8 @@
       // 必须先清掉上一局的 over，否则 beginTurn 开头的守卫会直接 return，新局卡死
       phase = 'idle';
       clearClaimTick();
+      // 隐藏一圈结算面板（防止新局被残留面板盖住）
+      if (els.result) { els.result.hidden = true; resultShowing = false; clearTimeout(resultTimer); }
       render();
       beginTurn(false);
     }
@@ -201,7 +217,14 @@
         p.concealed.push(t);
         drawn = { seat: p.seat, tile: t };
         if (!p.bot) sortHand(p);
-        if (isWin(p)) return endGame(p.seat, t, true);   // 自摸
+        if (isWin(p)) {
+          if (p.bot) return endGame(p.seat, t, true);   // AI 自摸自动胡
+          phase = 'win';                               // 玩家自摸：等点「胡」结算
+          winTile = t;
+          render();
+          ctx.setStatus('自摸！点「胡」结算');
+          return;
+        }
       } else {
         drawn = null;
       }
@@ -244,7 +267,12 @@
         p.concealed.push(t);
         drawn = { seat: 0, tile: t };
         sortHand(p);
-        if (isWin(p)) return endGame(0, t, true);   // 杠上开花
+        if (isWin(p)) {                                // 玩家杠上开花：等点胡
+          phase = 'win'; winTile = t;
+          render();
+          ctx.setStatus('杠上开花！点「胡」结算');
+          return;
+        }
       }
       phase = 'turn';
       render();
@@ -264,7 +292,12 @@
         p.concealed.push(t);
         drawn = { seat: 0, tile: t };
         sortHand(p);
-        if (isWin(p)) return endGame(0, t, true);
+        if (isWin(p)) {                                // 玩家补杠后自摸：等点胡
+          phase = 'win'; winTile = t;
+          render();
+          ctx.setStatus('杠上开花！点「胡」结算');
+          return;
+        }
       }
       phase = 'turn';
       render();
@@ -402,6 +435,7 @@
         <div class="mj-actions"></div>
         <div class="mj-toast" hidden></div>
         <div class="mj-huview" hidden></div>
+        <div class="mj-result" hidden></div>
       `;
       root.appendChild(wrap);
       els = {
@@ -417,6 +451,7 @@
         actions: wrap.querySelector('.mj-actions'),
         toast: wrap.querySelector('.mj-toast'),
         huview: wrap.querySelector('.mj-huview'),
+        result: wrap.querySelector('.mj-result'),
       };
     }
 
@@ -471,6 +506,8 @@
 
     function render() {
       if (!els.wrap) return;
+      // 兜底：非结算面板显示中时，重绘前隐藏（防止残留）
+      if (els.result && !els.result.hidden && !resultShowing) els.result.hidden = true;
       // 四方位对手：座位 1=左(下家) 2=上(对面) 3=右(上家)
       [[1, els.left], [2, els.top], [3, els.right]].forEach(([s, el]) => {
         if (!el) return;
@@ -479,10 +516,11 @@
           + (turnIdx === s && phase !== 'over' ? ' active' : '');
         const dir = s === 2 ? 'top' : s === 1 ? 'left' : 'right';
         const backs = '<span class="bk"></span>'.repeat(3);
+        const sc = score[s] > 0 ? '+' + score[s] : score[s];
         let h = `<div class="bks b-${dir}">${backs}</div>
                  <div class="avatar" style="background:${SEAT_COLOR[s]}"></div>
                  <div class="nm">${SEAT_ALIAS[s]}</div>
-                 <div class="cnt">${p.concealed.length + meldTiles(p)}张</div>`;
+                 <div class="cnt">${p.concealed.length + meldTiles(p)}张 · <span class="sc">${sc}</span></div>`;
         if (p.melds.length) {
           h += '<div class="mj-melds">' + p.melds.map(m =>
             `<span class="mj-chip">${m.type === 'gang' ? '杠' : '碰'}${tileLabel(m.tile)}</span>`).join('') + '</div>';
@@ -567,6 +605,18 @@
       }
       // 操作按钮（优先级：胡 > 杠 > 碰 > 过；碰/杠可用时都能点）
       els.actions.innerHTML = '';
+      // 玩家自摸：只有「胡」按钮
+      if (phase === 'win') {
+        const b = document.createElement('button');
+        b.className = 'mj-btn yes';
+        b.textContent = '胡';
+        b.addEventListener('click', () => {
+          phase = 'over';
+          endGame(0, winTile, true);
+        });
+        els.actions.appendChild(b);
+        return;
+      }
       // 暗杠：玩家回合内、手牌有 4 张同真牌
       if (phase === 'turn' && turnIdx === 0) {
         const g4 = findQuad(players[0]);
@@ -625,6 +675,36 @@
       toastTimer = setTimeout(() => { els.toast.hidden = true; }, 1600);
     }
 
+    /** 一圈（4 局）打完：成绩结算面板 */
+    let resultTimer = null, resultShowing = false;
+    function showCircleResult() {
+      if (!els.result || phase !== 'over') return;
+      const order = [0, 1, 2, 3].slice().sort((a, b) => score[b] - score[a]);
+      const rows = order.map((s, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+        return `<div class="mj-rs-row${s === 0 ? ' me' : ''}">
+          <span class="medal">${medal}</span>
+          <span class="name">${SEAT_ALIAS[s]}</span>
+          <span class="pts">${score[s] > 0 ? '+' : ''}${score[s]}</span>
+        </div>`;
+      }).join('');
+      els.result.innerHTML = `
+        <div class="mj-rscard">
+          <div class="mj-rs-title">一圈打完 · 战绩</div>
+          ${rows}
+          <button class="mj-btn yes" id="mjRsNew">开始新一圈</button>
+        </div>`;
+      els.result.hidden = false;
+      resultShowing = true;
+      els.result.querySelector('#mjRsNew').addEventListener('click', () => {
+        els.result.hidden = true;
+        resultShowing = false;
+        score = [0, 0, 0, 0];      // 清积分
+        roundInCircle = 0;         // 重新轮庄
+        newGame();
+      });
+    }
+
     /** 胡牌定格：半透明遮罩，摊开胡家手牌+副露，标"自摸/点炮/杠上开花"，2600ms 自动散场 */
     let huTimer = null;
     function showHuView(seat, tile, self) {
@@ -671,16 +751,20 @@
       if (lz2 >= 2) trips++;                        // 赖子将也算刻类
       const meldTrips = p.melds.length;
       if (trips + meldTrips >= 4) { names.push('碰碰胡'); fan += 2; }
-      // 七对：无副露且暗牌 14 张分成 7 对（赖子可补）
+      // 七对 / 龙七对：无副露且暗牌 14 张分成 7 对（赖子可补），含 4 张同牌=龙七对
       if (!p.melds.length && p.concealed.length === 14) {
         const { c: c7, lz: lz7 } = countTiles(p.concealed);
-        let pairs = 0, lz7b = lz7;
+        let pairs = 0, lz7b = lz7, quads = 0;
         for (let k = 0; k < 27; k++) {
-          if (c7[k] >= 2) { pairs += Math.floor(c7[k] / 2); c7[k] %= 2; }
+          if (c7[k] >= 4) { quads++; pairs += 2; c7[k] -= 4; }
+          if (c7[k] >= 2) { pairs++; c7[k] -= 2; }
           if (c7[k] === 1 && lz7b >= 1) { pairs++; lz7b--; }
         }
         if (lz7b >= 2) pairs++;
-        if (pairs >= 7) { names.push('七对'); fan += 4; }
+        if (pairs >= 7) {
+          if (quads >= 1) { names.push('龙七对'); fan += 8; }
+          else { names.push('七对'); fan += 4; }
+        }
       }
       // 杠上开花：自摸且刚杠过
       if (self && p.melds.some(m => m.type === 'gang')) { names.push('杠上开花'); fan += 2; }
@@ -763,7 +847,13 @@
         p.concealed.push(t);
         drawn = { seat: p.seat, tile: t };
         if (!p.bot) sortHand(p);
-        if (isWin(p)) return endGame(p.seat, t, true);   // 杠上开花
+        if (isWin(p)) {
+          if (p.bot) return endGame(p.seat, t, true);    // AI 杠上开花自动
+          phase = 'win'; winTile = t;                    // 玩家：等点胡
+          render();
+          ctx.setStatus('杠上开花！点「胡」结算');
+          return;
+        }
       }
       phase = 'turn';
       render();
@@ -805,9 +895,13 @@
       if (seat === -1) ctx.setStatus('流局了（牌墙摸完），点新局再来');
       else {
         showHuView(seat, tile, self);      // 胡牌定格：摊牌 + 番型
-        const circleDone = roundInCircle >= 3;
-        if (seat === 0) ctx.setStatus((self ? '自摸！你胡了' : '你胡了！') + (circleDone ? '（一圈打完，点新局开始新圈）' : '（低调收好）'));
-        else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？` + (circleDone ? '（一圈打完）' : ''));
+        const circleDone = roundInCircle % 4 === 0;   // 一圈 4 局打完
+        if (seat === 0) ctx.setStatus((self ? '自摸！你胡了' : '你胡了！') + (circleDone ? '（一圈打完！）' : '（低调收好）'));
+        else ctx.setStatus(`${SEAT_NAME[seat]}胡了，再来一把？` + (circleDone ? '（一圈打完！）' : ''));
+      }
+      // 一圈打完 → 弹成绩结算面板
+      if (roundInCircle % 4 === 0 && seat >= 0) {
+        setTimeout(() => showCircleResult(), 2800);   // 胡牌定格 2.6s 后出结算
       }
       if (ctx.onGameEnd) ctx.onGameEnd(seat === 0 ? 'player' : 'ai');
     }
@@ -825,6 +919,7 @@
           pool: players.reduce((n, p) => n + p.discards.length, 0),
           poolLaizi: players.reduce((n, p) => n + p.discards.filter(t => t === LAIZI).length, 0),
           canDiscard: phase === 'turn' && turnIdx === 0,
+          win: phase === 'win',
           pending: pending ? pending.type : '',
           myMelds: players[0].melds.length,
           toast: els.toast ? !els.toast.hidden : false,
@@ -847,6 +942,12 @@
         };
         window.__mjClaim = (yes) => { humanClaim(!!yes); return 'ok'; };
         // 冒烟：玩家暗杠 / 补杠
+        window.__mjWin = () => {
+          if (phase !== 'win') return 'no-win';
+          phase = 'over';
+          endGame(0, winTile, true);
+          return 'ok';
+        };
         window.__mjAnGang = () => {
           const g4 = findQuad(players[0]);
           if (g4 < 0) return 'no-quad';

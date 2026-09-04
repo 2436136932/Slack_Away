@@ -836,3 +836,43 @@ html, body {
   60% { transform: scale(1.06); }
   100% { transform: scale(1); }
 }
+
+/* ---------- 麻将一圈结算面板 + 四方积分 ---------- */
+.mj-pos .cnt .sc { color: rgba(126, 144, 170, calc(0.5 + 0.4 * var(--stone-ink))); font-weight: 500; }
+.mj-result {
+  position: absolute; inset: 0;
+  z-index: 30;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(250, 250, 252, calc(0.62 + 0.25 * var(--glass-alpha)));
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  backdrop-filter: blur(6px) saturate(160%);
+}
+.mj-result[hidden] { display: none; }
+.mj-rscard {
+  min-width: 200px; max-width: 88%;
+  border-radius: 14px;
+  background: rgba(252, 252, 254, calc(0.80 + 0.18 * var(--glass-alpha)));
+  border: 1px solid rgba(120, 126, 138, calc(0.15 + 0.2 * var(--glass-alpha)));
+  padding: 14px 18px;
+  font-family: var(--font);
+  text-align: center;
+}
+.mj-rs-title {
+  font-size: 14px; font-weight: 500;
+  color: rgba(29, 29, 31, calc(0.55 + 0.4 * var(--stone-ink)));
+  margin-bottom: 10px;
+}
+.mj-rs-row {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 4px 0;
+  font-size: 12.5px;
+  color: rgba(29, 29, 31, calc(0.4 + 0.4 * var(--stone-ink)));
+}
+.mj-rs-row.me {
+  background: rgba(126, 144, 170, calc(0.10 + 0.16 * var(--glass-alpha)));
+  border-radius: 8px;
+}
+.mj-rs-row .medal { width: 16px; text-align: center; flex: none; }
+.mj-rs-row .name { flex: 1; text-align: left; }
+.mj-rs-row .pts { font-weight: 500; }
+.mj-rscard .mj-btn.yes { margin-top: 10px; width: 100%; }

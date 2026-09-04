@@ -71,7 +71,8 @@ for (let g = 1; g <= GAMES; g++) {
     for (; steps < 4000; steps++) {
       last = st();
       if (last.phase === 'over') break;
-      if (last.canDiscard) play();
+      if (last.win) { sandbox.window.__mjWin(); }      // 玩家自摸：点胡结算
+      else if (last.canDiscard) play();
       else if (last.pending) claim(true);
     }
     if (last.winner >= 0) { huCount++; huBySeat[last.winner]++; }
