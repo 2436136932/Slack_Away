@@ -272,6 +272,20 @@
     }
 
     /* ---------- AI ---------- */
+    /** 防喂牌：这张牌对别人是否危险（最近 3 张内有人出过 → 可能在做对/碰） */
+    function dangerOf(t) {
+      if (t === LAIZI) return 0;
+      let d = 0;
+      for (let s2 = 0; s2 < 4; s2++) {
+        if (s2 === lastSeat) continue;           // 最近出牌人自己刚打过，不用防
+        const ds = players[s2].discards;
+        for (let k = ds.length - 1; k >= Math.max(0, ds.length - 3); k--) {
+          if (ds[k] === t) { d += 6; break; }     // 别人最近出过这张 → 危险
+        }
+      }
+      return d;
+    }
+
     function chooseDiscard(p) {
       const c = new Array(28).fill(0);
       for (const t of p.concealed) c[t]++;
@@ -288,6 +302,7 @@
         if (diff === 'hard') {
           if (r === 0 || r === 8) s -= 1;     // 困难：更愿意留幺九以外的中张
         }
+        s -= dangerOf(t);                     // 防喂牌：危险牌减分（=先打安全牌）
         scored.push({ i, s });
       });
       // 评分语义：分数越低 = 牌越有价值（越不该打）；要打的是分数最高的那张
@@ -346,6 +361,11 @@
             return;
           }
         }
+      }
+      // 困难模式提示：还剩几张安全牌可打（强化 AI 感）
+      if (diff === 'hard' && phase === 'turn' && turnIdx === p.seat) {
+        const safe = p.concealed.filter(t => t !== LAIZI && dangerOf(t) < 6).length;
+        if (safe < p.concealed.length) ctx.setStatus(`${SEAT_ALIAS[p.seat]}思考中…(剩 ${safe} 张安全牌)`);
       }
       // 大模型模式：AI 出牌走 LLM（未配置/失败/解析不出 → 回退本地启发式）
       if (mode === 'llm' && p.bot && ctx.llm) {
