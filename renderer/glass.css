@@ -565,52 +565,72 @@ html, body {
 /* ---------- 红中麻将（112 张 · 赖子百搭 · 无吃只碰杠） ---------- */
 .mj-root {
   width: 100%; height: 100%;
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 6px; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 5px; box-sizing: border-box;
   position: relative;    /* 胡牌定格/toast/飞行牌 的定位基准 */
 }
-.mj-opps { display: flex; gap: 4px; flex: none; }
-.mj-opp {
-  flex: 1;
-  border-radius: 8px; padding: 4px 2px;
+/* 四方桌：中央牌河 + 三家围三向（左=下家 上=对面 右=上家，你=下） */
+.mj-tbl {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  gap: 3px;
+}
+.mj-pos {
+  border-radius: 8px; padding: 3px 4px;
   text-align: center;
   background: rgba(168, 172, 180, calc(0.03 + 0.08 * var(--glass-alpha)));
   border: 1px solid rgba(120, 126, 138, calc(0.06 + 0.14 * var(--glass-alpha)));
   transition: background 0.2s ease;
+  align-self: center;
 }
-.mj-opp.active {
+.mj-pos.pos-top { grid-area: 1 / 2; justify-self: center; min-width: 96px; }
+.mj-pos.pos-left { grid-area: 2 / 1; justify-self: start; min-width: 72px; }
+.mj-pos.pos-right { grid-area: 2 / 3; justify-self: end; min-width: 72px; }
+.mj-pos.active {
   background: rgba(126, 144, 170, calc(0.10 + 0.22 * var(--glass-alpha)));
   border-color: rgba(126, 144, 170, calc(0.30 + 0.35 * var(--glass-alpha)));
 }
-.mj-opp .nm {
-  font-size: 10px;
-  color: rgba(29, 29, 31, calc(0.28 + 0.32 * var(--stone-ink)));
-}
-.mj-opp .cnt {
-  font-size: 13px; font-weight: 600; font-family: var(--font);
-  color: rgba(29, 29, 31, calc(0.40 + 0.40 * var(--stone-ink)));
-}
-.mj-opp .mj-melds { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; margin: 2px 0; }
+.mj-pos .nm { font-size: 10px; color: rgba(29, 29, 31, calc(0.28 + 0.32 * var(--stone-ink))); }
+.mj-pos .cnt { font-size: 13px; font-weight: 600; font-family: var(--font); color: rgba(29, 29, 31, calc(0.40 + 0.40 * var(--stone-ink))); }
+.mj-pos .mj-melds { display: flex; gap: 2px; justify-content: center; flex-wrap: wrap; margin: 2px 0; }
 .mj-chip {
   font-size: 9px; padding: 1px 3px; border-radius: 4px;
   background: rgba(126, 144, 170, calc(0.10 + 0.18 * var(--glass-alpha)));
   color: rgba(29, 29, 31, calc(0.35 + 0.35 * var(--stone-ink)));
 }
-.mj-opp .last {
-  font-size: 9px;
-  color: rgba(29, 29, 31, calc(0.25 + 0.30 * var(--stone-ink)));
-}
+.mj-pos .last { font-size: 9px; color: rgba(29, 29, 31, calc(0.25 + 0.30 * var(--stone-ink))); }
+/* 中央牌河：四分区（上=对面 左=下家 右=上家 下=你） */
 .mj-pool {
-  flex: 1;
-  min-height: 34px;
-  overflow-y: auto;
-  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
-  padding: 4px; border-radius: 8px;
+  grid-area: 2 / 2;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
   background: rgba(168, 172, 180, calc(0.02 + 0.05 * var(--glass-alpha)));
 }
+.mj-pool-in {
+  width: 100%; height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  box-sizing: border-box;
+}
+.mj-zone { display: flex; gap: 2px; flex-wrap: wrap; align-content: flex-start; }
+.mj-zone.z2 { grid-area: 1 / 2; justify-content: center; }
+.mj-zone.z1 { grid-area: 2 / 1; justify-content: center; align-content: flex-start; }
+.mj-zone.z3 { grid-area: 2 / 3; justify-content: center; align-content: flex-start; }
+.mj-zone.z0 { grid-area: 3 / 2; justify-content: center; }
 .mj-meta {
   flex: none; text-align: center; font-size: 10px;
   color: rgba(29, 29, 31, calc(0.25 + 0.30 * var(--stone-ink)));
+}
+.mj-handrow {
+  flex: none;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px;
 }
 .mj-hand {
   flex: none;

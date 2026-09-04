@@ -113,6 +113,7 @@
     let onHandClick = null;
     let claimDeadline = 0, claimTick = null;   // 碰/杠倒计时自动过
     let roundInCircle = 0;                    // 第几局（一圈 4 局，东南西北轮庄）
+    let lastSeat = 0;                         // 最近出牌人（牌河分区高亮）
     let stats = { games: 0, win: 0, selfDraw: 0, total: 0 };   // 本地统计
     let score = [0, 0, 0, 0];                     // 累计积分（一圈内各家）
 
@@ -365,15 +366,17 @@
       const wrap = document.createElement('div');
       wrap.className = 'mj-root';
       wrap.innerHTML = `
-        <div class="mj-opps">
-          <div class="mj-opp" data-s="3"></div>
-          <div class="mj-opp" data-s="2"></div>
-          <div class="mj-opp" data-s="1"></div>
+        <div class="mj-tbl">
+          <div class="mj-pos pos-top" data-s="2"></div>
+          <div class="mj-pos pos-left" data-s="1"></div>
+          <div class="mj-pool"><div class="mj-pool-in"></div></div>
+          <div class="mj-pos pos-right" data-s="3"></div>
         </div>
-        <div class="mj-pool"></div>
         <div class="mj-meta"></div>
-        <div class="mj-mymeid"></div>
-        <div class="mj-hand"></div>
+        <div class="mj-handrow">
+          <div class="mj-mymeid"></div>
+          <div class="mj-hand"></div>
+        </div>
         <div class="mj-actions"></div>
         <div class="mj-toast" hidden></div>
         <div class="mj-huview" hidden></div>
@@ -381,8 +384,11 @@
       root.appendChild(wrap);
       els = {
         wrap,
-        opps: Array.prototype.slice.call(wrap.querySelectorAll('.mj-opp')),
+        top: wrap.querySelector('.pos-top'),
+        left: wrap.querySelector('.pos-left'),
+        right: wrap.querySelector('.pos-right'),
         pool: wrap.querySelector('.mj-pool'),
+        poolIn: wrap.querySelector('.mj-pool-in'),
         meta: wrap.querySelector('.mj-meta'),
         mymeld: wrap.querySelector('.mj-mymeid'),
         hand: wrap.querySelector('.mj-hand'),
@@ -417,7 +423,10 @@
       setTimeout(() => { try { c.remove(); } catch (e) {} }, 240);
     }
     function oppElFor(seat) {
-      return els.opps[seat === 3 ? 0 : seat === 2 ? 1 : 2] || null;
+      if (seat === 1) return els.left;
+      if (seat === 2) return els.top;
+      if (seat === 3) return els.right;
+      return null;
     }
 
     /** 碰/杠倒计时：6s 不点自动「过」 */
@@ -440,11 +449,12 @@
 
     function render() {
       if (!els.wrap) return;
-      // 对手
-      [3, 2, 1].forEach((s, i) => {
-        const p = players[s], el = els.opps[i];
+      // 四方位对手：座位 1=左(下家) 2=上(对面) 3=右(上家)
+      [[1, els.left], [2, els.top], [3, els.right]].forEach(([s, el]) => {
         if (!el) return;
-        el.className = 'mj-opp' + (turnIdx === s && phase !== 'over' ? ' active' : '');
+        const p = players[s];
+        el.className = 'mj-pos pos-' + (s === 2 ? 'top' : s === 1 ? 'left' : 'right')
+          + (turnIdx === s && phase !== 'over' ? ' active' : '');
         let h = `<div class="nm">${SEAT_NAME[s]}</div>
                  <div class="cnt">${p.concealed.length + meldTiles(p)}张</div>`;
         if (p.melds.length) {
@@ -456,16 +466,23 @@
         }
         el.innerHTML = h;
       });
-      // 牌河（最后一张高亮"刚打出"）
-      els.pool.innerHTML = '';
+      // 中央牌河：四分区（你=下 / 下家=左 / 对面=上 / 上家=右）
+      els.poolIn.innerHTML = '';
       const pool = [];
       for (let s = 0; s < 4; s++) for (const t of players[s].discards) pool.push({ s, t });
-      pool.forEach((x, i) => {
-        const isLast = i === pool.length - 1 && phase !== 'over';
-        const d = tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh' : ''));
-        els.pool.appendChild(d);
+      const zones = { 0: [], 1: [], 2: [], 3: [] };
+      pool.forEach(x => zones[x.s].push(x));
+      [2, 1, 3, 0].forEach(s => {   // 渲染顺序：上/左/右/下
+        const z = document.createElement('div');
+        z.className = 'mj-zone z' + s;
+        zones[s].forEach((x, i) => {
+          const isLast = i === zones[s].length - 1 && s === lastSeat && phase !== 'over';
+          z.appendChild(tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh' : '')));
+        });
+        els.poolIn.appendChild(z);
       });
-      els.lastPoolTile = pool.length ? els.pool.lastChild : null;
+      els.lastPoolTile = (zones[lastSeat] && zones[lastSeat].length)
+        ? els.poolIn.querySelector('.z' + lastSeat).lastChild : null;
       // 元信息
       const circleTxt = ['东', '南', '西', '北'][(roundInCircle - 1) % 4] || '东';
       els.meta.textContent = `牌墙 ${wall.length} · 赖子 中 · 第${Math.ceil(roundInCircle / 4)}圈·${circleTxt}家坐庄 · 难度 ${diff === 'easy' ? '简单' : diff === 'hard' ? '困难' : '中等'} · 你 ${stats.win}胜/${stats.games}局 (自摸${stats.selfDraw}) · 积分 你${score[0] > 0 ? '+' : ''}${score[0]}`;
@@ -656,6 +673,7 @@
       phase = 'discarding';            // 出牌锁：防止 240ms 空窗内重复出牌（快速连点/脚本轮询）
       const t = p.concealed.splice(idx, 1)[0];
       p.discards.push(t);
+      lastSeat = p.seat;               // 记录最近出牌人，render 高亮对应牌河分区
       drawn = null;
       if (!p.bot) sortHand(p);
       render();
