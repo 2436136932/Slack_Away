@@ -261,6 +261,7 @@
             cell.classList.add('mv');
             cell.addEventListener('click', () => onCell(r, c));
           }
+          gridEl.appendChild(cell);
         }
       }
     }
