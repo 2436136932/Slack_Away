@@ -392,6 +392,34 @@ function createWindow() {
               }
               console.log(`[SMOKE] 麻将 3 局结果: 胡家=${JSON.stringify(huSeats)} 流局 ${drew} 次`);
 
+              // 台球专项：切台球 → 16 球 → 击一杆 → 驱动物理 → 截图 → 切回麻将
+              await win.webContents.executeJavaScript(`(function () {
+                document.getElementById('btnMenu').click();
+                var btns = document.querySelectorAll('#drawerGames .dr-game');
+                for (var i = 0; i < btns.length; i++) if (btns[i].title === '台球') { btns[i].click(); break; }
+                return 1;
+              })()`);
+              await new Promise(r => setTimeout(r, 500));
+              const bl0 = JSON.parse(await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState ? window.__smokeState() : { err: 1 })"));
+              console.log('[SMOKE] 台球 开局 pieces=' + bl0.pieces + ' state=' + bl0.state);
+              await shot('smoke-new-台球.png');
+              // 击一杆（向右）
+              await win.webContents.executeJavaScript("window.__bShoot(1, 0, 0.85)");
+              await new Promise(r => setTimeout(r, 2600));
+              const bl1 = JSON.parse(await win.webContents.executeJavaScript(
+                "JSON.stringify(window.__smokeState ? window.__smokeState() : { err: 1 })"));
+              console.log('[SMOKE] 台球 击后 state=' + bl1.state + ' potted=' + JSON.stringify(bl1.potted) + ' shotCount=' + bl1.shotCount);
+              await shot('smoke-new-台球-击后.png');
+              // 切回麻将（保持后续段干净）
+              await win.webContents.executeJavaScript(`(function () {
+                document.getElementById('btnMenu').click();
+                var btns = document.querySelectorAll('#drawerGames .dr-game');
+                for (var i = 0; i < btns.length; i++) if (btns[i].title === '红中麻将') { btns[i].click(); break; }
+                return 1;
+              })()`);
+              await new Promise(r => setTimeout(r, 400));
+
               // LLM 模式验证：备份原配置 → 填 mock → 切大模型模式 → 打一段对局 → 恢复
               const envUrl = process.env.GLASS_SMOKE_LLM_URL || '';
               const envKey = process.env.GLASS_SMOKE_LLM_KEY || '';
