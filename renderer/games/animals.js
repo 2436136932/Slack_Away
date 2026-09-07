@@ -262,7 +262,6 @@
             cell.addEventListener('click', () => onCell(r, c));
           }
         }
-        gridEl.appendChild(document.createElement('br'));
       }
     }
 
