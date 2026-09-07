@@ -26,14 +26,15 @@
   ];
 
   // 球色（低饱和摸鱼风）
+  // 低饱和球色：色相保留、饱和度砍半、亮度压暗（摸鱼不扎眼）
   const COLORS = {
-    0: 'rgba(248,246,240,',                      // 白
-    1: 'rgba(198,120,112,', 2: 'rgba(210,150,110,', 3: 'rgba(214,170,100,',
-    4: 'rgba(190,140,150,', 5: 'rgba(180,120,140,', 6: 'rgba(200,130,100,',
-    7: 'rgba(216,150,120,', 8: 'rgba(70,70,76,',
-    9: 'rgba(112,134,168,', 10: 'rgba(112,148,132,', 11: 'rgba(140,150,190,',
-    12: 'rgba(100,150,170,', 13: 'rgba(130,160,140,', 14: 'rgba(120,120,180,',
-    15: 'rgba(110,140,160,',
+    0: 'rgba(226,224,218,',
+    1: 'rgba(168,138,132,', 2: 'rgba(166,144,124,', 3: 'rgba(160,148,122,',
+    4: 'rgba(158,136,142,', 5: 'rgba(148,130,140,', 6: 'rgba(158,140,124,',
+    7: 'rgba(168,144,126,', 8: 'rgba(66,68,74,',
+    9: 'rgba(126,138,162,', 10: 'rgba(124,142,132,', 11: 'rgba(138,144,170,',
+    12: 'rgba(118,142,156,', 13: 'rgba(130,146,132,', 14: 'rgba(130,130,158,',
+    15: 'rgba(120,138,150,',
   };
 
   function factory() {
@@ -407,7 +408,7 @@
 
       const endX = hitBall ? cue.x + dirX * hitDist : cue.x + dirX * wallDist;
       const endY = hitBall ? cue.y + dirY * hitDist : cue.y + dirY * wallDist;
-      c2.strokeStyle = 'rgba(255,255,255,0.5)';
+      c2.strokeStyle = 'rgba(255,255,255,0.32)';
       c2.beginPath(); c2.moveTo(cue.x, cue.y); c2.lineTo(endX, endY); c2.stroke();
 
       if (hitBall) {
@@ -426,13 +427,13 @@
           if (a < bestAng) { bestAng = a; bestP = { x: px, y: py, d: pd }; }
         }
         const canPot = bestP && bestAng < 0.35;
-        c2.strokeStyle = canPot ? 'rgba(120,200,140,0.7)' : 'rgba(220,120,110,0.6)';
+        c2.strokeStyle = canPot ? 'rgba(120,180,140,0.42)' : 'rgba(200,130,120,0.38)';
         const lineLen = canPot ? bestP.d : 60;
         c2.beginPath(); c2.moveTo(hitBall.x, hitBall.y);
         c2.lineTo(hitBall.x + tgX * lineLen, hitBall.y + tgY * lineLen); c2.stroke();
         if (canPot) {
           c2.setLineDash([]);
-          c2.strokeStyle = 'rgba(120,200,140,0.9)';
+          c2.strokeStyle = 'rgba(120,180,140,0.5)';
           c2.beginPath(); c2.arc(bestP.x, bestP.y, POCKET_R, 0, Math.PI * 2); c2.stroke();
         }
         // ③ 白球分离方向（短）
@@ -440,20 +441,20 @@
         const sepY = dirY - tgY * (dirX * tgX + dirY * tgY);
         const sepD = Math.hypot(sepX, sepY);
         if (sepD > 0.05) {
-          c2.strokeStyle = 'rgba(255,255,255,0.3)';
+          c2.strokeStyle = 'rgba(255,255,255,0.2)';
           c2.beginPath(); c2.moveTo(endX, endY);
           c2.lineTo(endX + sepX / sepD * 28, endY + sepY / sepD * 28); c2.stroke();
         }
       } else {
         // ③ 库边反弹预测（一次反射）
-        c2.strokeStyle = 'rgba(255,255,255,0.25)';
+        c2.strokeStyle = 'rgba(255,255,255,0.16)';
         let rx = dirX, ry = dirY, px = endX, py = endY;
         if (wallAxis === 'x') rx = -rx; else ry = -ry;
         c2.beginPath(); c2.moveTo(px, py); c2.lineTo(px + rx * 70, py + ry * 70); c2.stroke();
       }
       c2.setLineDash([]);
       // ④ 力度条
-      c2.fillStyle = power > 0.8 ? 'rgba(220,120,110,0.8)' : 'rgba(120,180,140,0.8)';
+      c2.fillStyle = power > 0.8 ? 'rgba(190,130,120,0.5)' : 'rgba(120,160,135,0.5)';
       c2.fillRect(CUSHION, TABLE_H + CUSHION + 4, (TABLE_W) * power, 5);
     }
 
@@ -474,6 +475,15 @@
 
     function render() {
       if (!c2d) return;
+      // 读取透明/墨色滑块（与其他游戏联动）
+      let ga = 0.45;
+      try {
+        const cs = getComputedStyle(root);
+        ga = parseFloat(cs.getPropertyValue('--glass-alpha'));
+        if (isNaN(ga)) ga = 0.45;
+      } catch (e) {}
+      const ballA = 0.45 + 0.45 * ga;          // 球体透明度联动
+      const tableA = 0.45 + 0.4 * ga;          // 桌面透明度联动
       const c2 = c2d;
       const dpr = window.devicePixelRatio || 1;
       c2.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -481,11 +491,11 @@
       c2.save();
       c2.translate(offX, offY);
       c2.scale(scale, scale);
-      // 桌面
-      c2.fillStyle = 'rgba(60,80,66,0.85)';
+      // 桌面：灰墨绿（低饱和）
+      c2.fillStyle = 'rgba(52,58,54,' + (tableA * 0.95) + ')';
       roundRect(c2, 0, 0, TABLE_W + CUSHION * 2, TABLE_H + CUSHION * 2, 10);
       c2.fill();
-      c2.fillStyle = 'rgba(70,96,76,0.9)';
+      c2.fillStyle = 'rgba(58,68,60,' + tableA + ')';
       c2.fillRect(CUSHION, CUSHION, TABLE_W, TABLE_H);
       // 袋口
       for (const p of POCKETS) {
@@ -509,14 +519,14 @@
         let glow = false;
         if (state === 'aim' && turn === 'player' && g && groupOf(b.num) === g) glow = true;
         if (glow) {
-          c2.strokeStyle = 'rgba(230,200,120,0.5)';
+          c2.strokeStyle = 'rgba(210,190,130,0.3)';
           c2.lineWidth = 2;
           c2.beginPath(); c2.arc(b.x, b.y, R + 3, 0, Math.PI * 2); c2.stroke();
           c2.lineWidth = 1;
         }
-        c2.fillStyle = col + '0.95)';
+        c2.fillStyle = col + ballA + ')';
         c2.beginPath(); c2.arc(b.x, b.y, R, 0, Math.PI * 2); c2.fill();
-        c2.strokeStyle = 'rgba(255,255,255,0.35)';
+        c2.strokeStyle = 'rgba(255,255,255,0.18)';
         c2.beginPath(); c2.arc(b.x, b.y, R, 0, Math.PI * 2); c2.stroke();
         // 号码
         if (b.num !== 0) {
