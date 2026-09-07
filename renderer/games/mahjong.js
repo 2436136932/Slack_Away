@@ -470,7 +470,10 @@
     function tileEl(t, cls) {
       const d = document.createElement('div');
       d.className = 'mj-tile' + (cls ? ' ' + cls : '') + ' ' + (t === LAIZI ? 'lz' : 's' + tileSuit(t));
-      d.textContent = tileLabel(t);
+      // 牌面重绘：数字 + 花色图案（万=◎ 条=┃ 筒=●），红中=中
+      const num = t === LAIZI ? '' : (t % 9 + 1);
+      const pat = t === LAIZI ? '中' : (['◎', '┃', '●'][tileSuit(t)]);
+      d.innerHTML = '<span class="mj-num">' + num + '</span><span class="mj-pat">' + pat + '</span>';
       return d;
     }
 
@@ -545,6 +548,12 @@
       if (!els.wrap) return;
       // 兜底：非结算面板显示中时，重绘前隐藏（防止残留）
       if (els.result && !els.result.hidden && !resultShowing) els.result.hidden = true;
+      // 听牌引导：轮到玩家且听牌时，可胡的牌集合（牌河/手牌高亮用）
+      const tenpaiSet = new Set();
+      if (phase === 'turn' && turnIdx === 0) {
+        const tp = listTenpai(players[0]);
+        if (tp.length) tp.forEach(x => { if (x.t >= 0) tenpaiSet.add(x.t); });
+      }
       // 四方位对手：座位 1=左(下家) 2=上(对面) 3=右(上家)
       [[1, els.left], [2, els.top], [3, els.right]].forEach(([s, el]) => {
         if (!el) return;
@@ -578,7 +587,8 @@
         z.className = 'mj-zone z' + s;
         zones[s].forEach((x, i) => {
           const isLast = i === zones[s].length - 1 && s === lastSeat && phase !== 'over';
-          z.appendChild(tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh pop' : '')));
+          const hint = tenpaiSet.has(x.t) ? ' hint' : '';
+          z.appendChild(tileEl(x.t, 'sm' + (x.s === 0 ? ' mine' : '') + (isLast ? ' fresh pop' : '') + hint));
         });
         els.poolIn.appendChild(z);
       });
@@ -619,7 +629,8 @@
       });
       groups.forEach(g => g.sort((a, b) => a.t - b.t));
       const mkTile = (t, i, cls) => {
-        const d = tileEl(t, cls + (canDiscard ? ' pick' : ''));
+        const hint = tenpaiSet.has(t) ? ' hint' : '';
+        const d = tileEl(t, cls + (canDiscard ? ' pick' : '') + hint);
         if (canDiscard) {
           d.addEventListener('click', () => {
             undoStack.push(snapshot());
@@ -973,6 +984,8 @@
           counterOn: counterOn,
           counterTiles: els.counter ? els.counter.querySelectorAll('.ct-t').length : 0,
           claimBtnText: els.actions ? (els.actions.querySelector('.mj-btn.no') || {}).textContent : '',
+          patTiles: document.querySelectorAll('.mj-tile .mj-pat').length,
+          hintTiles: document.querySelectorAll('.mj-tile.hint').length,
         });
         window.__mjDiscard = (i) => {
           if (phase !== 'turn' || turnIdx !== 0) return 'not-your-turn';

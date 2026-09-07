@@ -940,3 +940,31 @@ html, body {
   .mj-handrow { min-height: 34px; gap: 5px; }
   .mj-counter { font-size: 8.5px; padding: 1px 6px; }
 }
+
+/* ---------- 牌面重绘：数字 + 花色图案 + 听牌引导 ---------- */
+.mj-tile {
+  flex-direction: column; gap: 0;
+  position: relative;
+  line-height: 1;
+}
+.mj-tile .mj-num {
+  font-size: 12px; font-weight: 600;
+  line-height: 1.05;
+}
+.mj-tile .mj-pat {
+  font-size: 9px; line-height: 1;
+  opacity: 0.72;
+}
+.mj-tile.sm .mj-num { font-size: 9px; }
+.mj-tile.sm .mj-pat { font-size: 7px; }
+.mj-tile.lz .mj-pat {
+  font-size: 13px; opacity: 1;
+  font-weight: 600;
+}
+/* 听牌引导：可胡的牌高亮（低饱和金边 + 微光，摸鱼不扎眼） */
+.mj-tile.hint {
+  border-color: rgba(186, 138, 60, calc(0.5 + 0.35 * var(--glass-alpha)));
+  box-shadow: 0 0 0 1px rgba(186, 138, 60, calc(0.3 + 0.28 * var(--glass-alpha)));
+  background: rgba(186, 138, 60, calc(0.08 + 0.12 * var(--glass-alpha)));
+}
+.mj-tile.hint .mj-num { color: rgba(168, 130, 60, calc(0.55 + 0.42 * var(--stone-ink))); }
