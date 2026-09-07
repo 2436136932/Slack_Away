@@ -470,9 +470,9 @@
     function tileEl(t, cls) {
       const d = document.createElement('div');
       d.className = 'mj-tile' + (cls ? ' ' + cls : '') + ' ' + (t === LAIZI ? 'lz' : 's' + tileSuit(t));
-      // 牌面重绘：数字 + 花色图案（万=◎ 条=┃ 筒=●），红中=中
+      // 牌面重绘 v2：数字 + 花色汉字（万/条/筒），红中=中，三色底色微染
       const num = t === LAIZI ? '' : (t % 9 + 1);
-      const pat = t === LAIZI ? '中' : (['◎', '┃', '●'][tileSuit(t)]);
+      const pat = t === LAIZI ? '中' : (['万', '条', '筒'][tileSuit(t)]);
       d.innerHTML = '<span class="mj-num">' + num + '</span><span class="mj-pat">' + pat + '</span>';
       return d;
     }

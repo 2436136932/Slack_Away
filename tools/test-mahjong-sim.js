@@ -43,6 +43,7 @@ const sandbox = {
     createElement: () => stubEl(),
     createElementNS: () => stubEl(),
     querySelector: () => null,           // __smokeState 里查 .mj-tile.fresh
+    querySelectorAll: () => [],          // __smokeState 里查 .mj-pat / .hint
   },
   Math, JSON, Array, Number, String, Object,
 };
