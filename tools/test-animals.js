@@ -44,35 +44,36 @@ function putPit(board, r, c) { board[r][c] = 'pit'; }
 }
 // 6. 陷阱里象被鼠吃
 {
-  const b = empty(); put(b, 4, 4, 'b', 'e'); putPit(b, 4, 4); put(b, 4, 3, 'r', 'r'); setBoard(b); setTurn('r');
-  t('陷阱象被鼠吃', canMove(4, 3, 4, 4) === true);
+  const b = empty(); put(b, 1, 3, 'b', 'e'); put(b, 1, 2, 'r', 'r'); setBoard(b); setTurn('r');
+  t('陷阱象被鼠吃', canMove(1, 2, 1, 3) === true);
 }
 // 7. 陷阱里象被猫吃（陷阱变1）
 {
-  const b = empty(); put(b, 4, 4, 'b', 'e'); putPit(b, 4, 4); put(b, 4, 3, 'r', 'c'); setBoard(b); setTurn('r');
-  t('陷阱象被猫吃', canMove(4, 3, 4, 4) === true);
+  const b = empty(); put(b, 1, 3, 'b', 'e'); put(b, 1, 2, 'r', 'c'); setBoard(b); setTurn('r');
+  t('陷阱象被猫吃', canMove(1, 2, 1, 3) === true);
 }
 // 8. 鼠不能进河
 {
-  const b = empty(); put(b, 3, 4, 'b', 'r'); setBoard(b); setTurn('b');
-  t('鼠不能进河', canMove(3, 4, 2, 4) === false && canMove(3, 4, 4, 4) === true);
+  const b = empty(); put(b, 2, 1, 'b', 'r'); setBoard(b); setTurn('b');
+  t('鼠不能进河', canMove(2, 1, 3, 1) === false && canMove(2, 1, 2, 0) === true);
 }
 // 9. 非鼠可进河
 {
-  const b = empty(); put(b, 3, 4, 'b', 'c'); setBoard(b); setTurn('b');
-  t('猫可进河', canMove(3, 4, 2, 4) === true);
+  const b = empty(); put(b, 2, 1, 'b', 'c'); setBoard(b); setTurn('b');
+  t('猫可进河', canMove(2, 1, 3, 1) === true);
 }
 // 10. 狮跳过河 / 不能跳非河
 {
-  const b = empty(); put(b, 7, 1, 'b', 's'); setBoard(b); setTurn('b');
-  t('狮不能跳非河', canMove(7, 1, 4, 1) === false);
-  const b2 = empty(); put(b2, 6, 1, 'b', 's'); setBoard(b2); setTurn('b');
-  t('狮跳过河', canMove(6, 1, 4, 1) === true);
+  const b = empty(); put(b, 2, 1, 'b', 's'); setBoard(b); setTurn('b');
+  t('狮跳过河(2,1→5,1)', canMove(2, 1, 5, 1) === true);
+  t('狮不能跳非河', canMove(2, 1, 6, 1) === false);   // 中间行3-4是河，行5(5,1)也是河但(6,1)非河→目标超一跳
+  const b2 = empty(); put(b2, 2, 3, 'b', 's'); setBoard(b2); setTurn('b');
+  t('狮不能走桥外直线跨非河', canMove(2, 3, 6, 3) === false);  // 列3是桥不是河，不能跳
 }
 // 11. 猫不能跳河
 {
-  const b = empty(); put(b, 6, 1, 'b', 'c'); setBoard(b); setTurn('b');
-  t('猫不能跳河', canMove(6, 1, 4, 1) === false);
+  const b = empty(); put(b, 2, 1, 'b', 'c'); setBoard(b); setTurn('b');
+  t('猫不能跳河', canMove(2, 1, 5, 1) === false);
 }
 // 12. 不能进己方兽穴
 {

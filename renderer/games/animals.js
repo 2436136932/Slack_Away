@@ -12,15 +12,19 @@
 
   const N = 8;
   // 初始布局（蓝=玩家在下，红=AI在上）
+  // 标准两排布阵（8×8 适配版）：
+  //   河区 = 行3-4 × 列1-2 与 列4-5（两块 2×2，列3 是陆地桥）
+  //   兽穴 (0,3)/(7,3)；陷阱 = 穴上(1,3)/(6,3) + 穴两侧(0,2)(0,4)/(7,2)(7,4)，共 6 个
+  //   前排 6 只（象狼狗·猫豹）+ 狮鼠虎贴河岸（狮虎可竖跳整条河，鼠居中随时下河）
   const INIT = [
-    [['r','r'], ['r','c'], ['r','d'], ['r','w'], ['r','l'], ['r','t'], ['r','s'], ['r','e']],   // 上=红（镜像对称）：鼠猫狗狼豹虎狮象
     [null, null, null, null, null, null, null, null],
-    [null, 'pit', null, 'pit', null, 'pit', null, 'pit'],
+    [['r','e'], ['r','w'], ['r','d'], null, ['r','c'], ['r','l'], null, null],
+    [null, ['r','s'], null, ['r','r'], null, ['r','t'], null, null],
     [null, null, null, null, null, null, null, null],
     [null, null, null, null, null, null, null, null],
-    [null, 'pit', null, 'pit', null, 'pit', null, 'pit'],
+    [null, ['b','s'], null, ['b','r'], null, ['b','t'], null, null],
+    [['b','e'], ['b','w'], ['b','d'], null, ['b','c'], ['b','l'], null, null],
     [null, null, null, null, null, null, null, null],
-    [['b','l'], ['b','s'], ['b','t'], ['b','e'], ['b','w'], ['b','d'], ['b','c'], ['b','r']],   // 下=蓝：豹狮虎象狼狗猫鼠（e=象）
   ];
   const DEN_R = [0, 3];   // 红方兽穴（上）
   const DEN_B = [7, 3];   // 蓝方兽穴（下）
@@ -54,10 +58,11 @@
     /* ---------- 核心规则 ---------- */
 
     // 河区：第3/5行，第2-6列（索引1-5）
-    function isRiver(r, c) { return (r === 2 || r === 5) && c >= 1 && c <= 5; }
+    function isRiver(r, c) { return (r === 3 || r === 4) && ((c >= 1 && c <= 2) || (c >= 4 && c <= 5)); }
 
-    // 陷阱：有 'pit' 标记的格子
-    function isPit(r, c) { return board[r][c] === 'pit'; }
+    // 陷阱：固定位置集合（不随棋子覆盖变化）
+    const PITS = [[1,3],[0,2],[0,4],[6,3],[7,2],[7,4]];
+    function isPit(r, c) { return PITS.some(([pr, pc]) => pr === r && pc === c); }
 
     // 兽穴
     function isDen(r, c) { return (r === DEN_R[0] && c === DEN_R[1]) || (r === DEN_B[0] && c === DEN_B[1]); }
@@ -298,7 +303,7 @@ ${boardStr()}
             cell.addEventListener('click', () => onCell(r, c));
             if (selected && selected[0] === r && selected[1] === c) cell.classList.add('sel');
             if (selected && legalMoves.some(([mr, mc]) => mr === r && mc === c)) cell.classList.add('mv');
-          } else if (v === 'pit') {
+          } else if (v === null && isPit(r, c)) {
             cell.textContent = '陷';
             cell.classList.add('pit-t');
           } else if (v === null && isDen(r, c)) {
@@ -341,7 +346,7 @@ ${boardStr()}
     }
 
     function reset() {
-      board = INIT.map(row => row.map(cell => cell === 'pit' ? 'pit' : (cell ? cell.slice() : null)));
+      board = INIT.map(row => row.map(cell => cell ? cell.slice() : null));
       turn = 'b'; over = false; winner = null; selected = null; legalMoves = []; hist = [];
       aiThinking = false;
       buildDom();
