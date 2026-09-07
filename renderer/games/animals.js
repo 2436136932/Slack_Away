@@ -13,7 +13,7 @@
   const N = 8;
   // 初始布局（蓝=玩家在下，红=AI在上）
   const INIT = [
-    [['r','r'], ['r','c'], ['r','d'], ['r','w'], ['r','l'], ['r','t'], ['r','s'], ['r','e']],   // 上=红：鼠猫狗狼象虎狮豹
+    [['r','r'], ['r','c'], ['r','d'], ['r','w'], ['r','l'], ['r','t'], ['r','s'], ['r','e']],   // 上=红（镜像对称）：鼠猫狗狼豹虎狮象
     [null, null, null, null, null, null, null, null],
     [null, 'pit', null, 'pit', null, 'pit', null, 'pit'],
     [null, null, null, null, null, null, null, null],
@@ -293,7 +293,7 @@ ${boardStr()}
           const v = board[r][c];
           if (v && typeof v === 'object') {
             const a = ANIMAL_MAP[v[1]];
-            cell.innerHTML = `<span class="an-ic">${a.icon}</span><span class="an-nm ${v[0]}">${a.name}</span>`;
+            cell.innerHTML = `<span class="an-ic">${a.icon}</span><span class="an-nm ${v[0]}">${a.name}${a.rank}</span>`;
             cell.dataset.rc = r + ',' + c;
             cell.addEventListener('click', () => onCell(r, c));
             if (selected && selected[0] === r && selected[1] === c) cell.classList.add('sel');
