@@ -20,7 +20,7 @@
     [null, null, null, null, null, null, null, null],
     [null, 'pit', null, 'pit', null, 'pit', null, 'pit'],
     [null, null, null, null, null, null, null, null],
-    [['b','e'], ['b','s'], ['b','t'], ['b','e'], ['b','w'], ['b','d'], ['b','c'], ['b','r']],   // 下=蓝：豹狮虎象狼狗猫鼠（e=象）
+    [['b','l'], ['b','s'], ['b','t'], ['b','e'], ['b','w'], ['b','d'], ['b','c'], ['b','r']],   // 下=蓝：豹狮虎象狼狗猫鼠（e=象）
   ];
   const DEN_R = [0, 3];   // 红方兽穴（上）
   const DEN_B = [7, 3];   // 蓝方兽穴（下）
@@ -45,7 +45,7 @@
   function animalName(c) { return c ? ANIMAL_MAP[c[1]].name : ''; }
 
   function factory() {
-    let root, ctx = null, diff = 'medium';
+    let root, ctx = null, diff = 'medium', mode = 'local';
     let board = [], turn = 'b', over = false, winner = null;
     let selected = null, legalMoves = [];
     let hist = [], aiThinking = false;
@@ -159,7 +159,43 @@
     }
 
     /* ---------- AI ---------- */
-    function aiMove() {
+    /** 棋盘编码（LLM 可读）：每行 8 格，.空 陷阱# 兽穴O，动物=阵营小写+首字 */
+    function boardStr() {
+      const rows = [];
+      for (let r = 0; r < N; r++) {
+        let row = '';
+        for (let c = 0; c < N; c++) {
+          const v = board[r][c];
+          if (v === 'pit') row += '#';
+          else if (v && typeof v === 'object') row += v[0] + ANIMAL_MAP[v[1]].name;
+          else row += (isDen(r, c) ? 'O' : '.');
+        }
+        rows.push(row);
+      }
+      return rows.join('\n');
+    }
+
+    /** LLM 走子：返回 [r,c] 或 null（失败/不合法） */
+    async function llmMove(pieces) {
+      const text = await ctx.llm([
+        { role: 'system', content: '你是斗兽棋高手。规则：动物等级 象8>狮7>虎6>豹5>狼4>狗3>猫2>鼠1，大吃小；鼠吃象；狮虎可沿直线跳过整条河；陷阱里的动物变最弱；你执红（上），目标是走进蓝方兽穴(第8行O)或吃光蓝方。' },
+        { role: 'user', content: `当前棋盘（r=红你方，b=蓝对方，#陷阱，O兽穴）：
+${boardStr()}
+你的合法走法：${pieces.map(p => `(${p.r + 1},${p.c + 1})→${p.ms.map(m => `(${m[0] + 1},${m[1] + 1})`).join('/')}`).join('；')}
+只输出一个最佳走法，格式：(起点行,起点列)→(终点行,终点列)，例如 (1,1)→(2,1)` },
+      ], { temperature: 0.3, maxTokens: 40 });
+      // 解析 "(r,c)→(r,c)"
+      const m = text.match(/\((\d)\s*,\s*(\d)\)\s*[→>-]\s*\((\d)\s*,\s*(\d)\)/);
+      if (!m) return null;
+      const fr = Number(m[1]) - 1, fc = Number(m[2]) - 1, tr = Number(m[3]) - 1, tc = Number(m[4]) - 1;
+      // 校验合法性
+      const piece = pieces.find(p => p.r === fr && p.c === fc);
+      if (!piece) return null;
+      if (!piece.ms.some(([mr, mc]) => mr === tr && mc === tc)) return null;
+      return [fr, fc, tr, tc];
+    }
+
+    async function aiMove() {
       const side = 'r';
       const pieces = [];
       for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
@@ -170,6 +206,17 @@
         }
       }
       if (!pieces.length) { checkEnd(); return; }
+
+      // 大模型模式：LLM 决策，失败/不合法回退本地
+      if (mode === 'llm' && ctx.llm) {
+        ctx.setStatus('大模型思考中…（失败自动回退本地）');
+        let mv = null;
+        try { mv = await llmMove(pieces); } catch (err) {
+          ctx.setStatus('大模型走棋失败（' + String(err.message || err).slice(0, 50) + '）→ 本地接管');
+        }
+        if (mv) { doMove(mv[0], mv[1], mv[2], mv[3], true); return; }   // mv=[起点r,起点c,终点r,终点c]
+        // 落到本地
+      }
 
       let best = null, bestScore = -Infinity;
       for (const p of pieces) {
@@ -218,7 +265,7 @@
         ctx.setStatus(isAI ? `${SIDE_NAME[me[0]]}走 ${animalName(me)}` : `该 ${SIDE_NAME[turn]} 了 · ${SIDE_NAME[turn]}(${SIDE[turn]})`);
         if (!isAI && turn === 'r') {
           aiThinking = true; render();
-          setTimeout(() => { aiThinking = false; aiMove(); }, 350);
+          setTimeout(() => { aiThinking = false; Promise.resolve(aiMove()).catch(err => { aiThinking = false; ctx.setStatus('AI 出错：' + String(err.message || err).slice(0, 50)); }); }, 350);
         }
       }
     }
@@ -324,6 +371,7 @@
       },
 
       onDiffChange(d) { if (d !== diff) { diff = d; reset(); } },
+      onModeChange(m) { mode = m; },
       onNewGame() { reset(); },
       undo() {
         if (!hist.length || over || aiThinking) return false;
