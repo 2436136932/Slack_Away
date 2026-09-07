@@ -26,15 +26,15 @@
   ];
 
   // 球色（低饱和摸鱼风）
-  // 低饱和球色：色相保留、饱和度砍半、亮度压暗（摸鱼不扎眼）
+  // 灰阶球色：几乎无色相，靠明度深浅区分（白球最亮→黑八最深；暖球=中亮灰 冷球=中暗灰）
   const COLORS = {
-    0: 'rgba(226,224,218,',
-    1: 'rgba(168,138,132,', 2: 'rgba(166,144,124,', 3: 'rgba(160,148,122,',
-    4: 'rgba(158,136,142,', 5: 'rgba(148,130,140,', 6: 'rgba(158,140,124,',
-    7: 'rgba(168,144,126,', 8: 'rgba(66,68,74,',
-    9: 'rgba(126,138,162,', 10: 'rgba(124,142,132,', 11: 'rgba(138,144,170,',
-    12: 'rgba(118,142,156,', 13: 'rgba(130,146,132,', 14: 'rgba(130,130,158,',
-    15: 'rgba(120,138,150,',
+    0: 'rgba(200,198,192,',
+    1: 'rgba(150,146,140,', 2: 'rgba(144,141,136,', 3: 'rgba(138,136,132,',
+    4: 'rgba(134,132,130,', 5: 'rgba(128,127,126,', 6: 'rgba(134,132,129,',
+    7: 'rgba(140,137,132,', 8: 'rgba(56,58,62,',
+    9: 'rgba(118,120,124,', 10: 'rgba(112,116,118,', 11: 'rgba(108,112,118,',
+    12: 'rgba(104,110,114,', 13: 'rgba(100,106,108,', 14: 'rgba(96,102,108,',
+    15: 'rgba(92,98,104,',
   };
 
   function factory() {
@@ -492,10 +492,10 @@
       c2.translate(offX, offY);
       c2.scale(scale, scale);
       // 桌面：灰墨绿（低饱和）
-      c2.fillStyle = 'rgba(52,58,54,' + (tableA * 0.95) + ')';
+      c2.fillStyle = 'rgba(42,46,44,' + (tableA * 0.95) + ')';
       roundRect(c2, 0, 0, TABLE_W + CUSHION * 2, TABLE_H + CUSHION * 2, 10);
       c2.fill();
-      c2.fillStyle = 'rgba(58,68,60,' + tableA + ')';
+      c2.fillStyle = 'rgba(44,50,46,' + tableA + ')';
       c2.fillRect(CUSHION, CUSHION, TABLE_W, TABLE_H);
       // 袋口
       for (const p of POCKETS) {
@@ -530,13 +530,13 @@
         c2.beginPath(); c2.arc(b.x, b.y, R, 0, Math.PI * 2); c2.stroke();
         // 号码
         if (b.num !== 0) {
-          c2.fillStyle = 'rgba(255,255,255,0.9)';
-          c2.font = 'bold 8px sans-serif';
+          c2.fillStyle = 'rgba(255,255,255,0.55)';
+          c2.font = 'bold 7px sans-serif';
           c2.textAlign = 'center'; c2.textBaseline = 'middle';
           c2.fillText(String(b.num), b.x, b.y + 0.5);
           // 花色条（条纹球 9-15 画白带）
           if (b.num >= 9) {
-            c2.strokeStyle = 'rgba(255,255,255,0.5)';
+            c2.strokeStyle = 'rgba(255,255,255,0.28)';
             c2.beginPath(); c2.moveTo(b.x - R + 2, b.y); c2.lineTo(b.x + R - 2, b.y); c2.stroke();
           }
         } else {
