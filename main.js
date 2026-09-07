@@ -347,6 +347,7 @@ function createWindow() {
                 "JSON.stringify(window.__smokeState())"));
               console.log(`[SMOKE] 麻将 开局校验 hands=${JSON.stringify(init.hands)} wall=${init.wall}`
                 + ` (期望 hands=[14,13,13,13] wall=59)`);
+
               // 四方桌专项：左/上/右对手 + 牌河四分区
               const tblInfo = await win.webContents.executeJavaScript(`(function () {
                 var has = function (sel) { return !!document.querySelector(sel); };

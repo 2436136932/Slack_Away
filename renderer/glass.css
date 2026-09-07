@@ -966,10 +966,65 @@ html, body {
 .mj-tile.s0 { background: rgba(198, 130, 122, calc(0.10 + 0.14 * var(--glass-alpha))); }
 .mj-tile.s1 { background: rgba(112, 148, 132, calc(0.10 + 0.14 * var(--glass-alpha))); }
 .mj-tile.s2 { background: rgba(112, 134, 168, calc(0.10 + 0.14 * var(--glass-alpha))); }
-/* 听牌引导：可胡的牌高亮（低饱和金边 + 微光，摸鱼不扎眼） */
-.mj-tile.hint {
-  border-color: rgba(186, 138, 60, calc(0.5 + 0.35 * var(--glass-alpha)));
-  box-shadow: 0 0 0 1px rgba(186, 138, 60, calc(0.3 + 0.28 * var(--glass-alpha)));
-  background: rgba(186, 138, 60, calc(0.08 + 0.12 * var(--glass-alpha)));
+
+/* ---------- 斗兽棋 ---------- */
+.an-root {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 6px; box-sizing: border-box;
 }
-.mj-tile.hint .mj-num { color: rgba(168, 130, 60, calc(0.55 + 0.42 * var(--stone-ink))); }
+.an-board {
+  display: grid;
+  grid-template-columns: repeat(8, 40px);
+  grid-template-rows: repeat(8, 40px);
+  gap: 2px;
+  background: rgba(168, 172, 180, calc(0.03 + 0.06 * var(--glass-alpha)));
+  border-radius: 10px;
+  padding: 4px;
+}
+.an-cell {
+  width: 40px; height: 40px;
+  border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(252, 252, 254, calc(0.25 + 0.35 * var(--glass-alpha)));
+  border: 1px solid rgba(120, 126, 138, calc(0.08 + 0.14 * var(--glass-alpha)));
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+.an-cell.river {
+  background: rgba(112, 148, 168, calc(0.10 + 0.16 * var(--glass-alpha)));
+  border-color: rgba(112, 148, 168, calc(0.15 + 0.2 * var(--glass-alpha)));
+}
+.an-cell.pit {
+  background: rgba(198, 160, 120, calc(0.12 + 0.18 * var(--glass-alpha)));
+}
+.an-cell.den {
+  background: rgba(198, 130, 122, calc(0.14 + 0.22 * var(--glass-alpha)));
+}
+.an-cell .an-ic { font-size: 18px; line-height: 1.1; }
+.an-cell .an-nm { font-size: 9px; font-weight: 500; line-height: 1.1; }
+.an-cell .an-nm.b { color: rgba(56, 96, 150, calc(0.55 + 0.4 * var(--stone-ink))); }
+.an-cell .an-nm.r { color: rgba(178, 78, 72, calc(0.55 + 0.4 * var(--stone-ink))); }
+.an-cell.sel {
+  border-color: rgba(186, 138, 60, calc(0.55 + 0.35 * var(--glass-alpha)));
+  box-shadow: 0 0 0 2px rgba(186, 138, 60, calc(0.25 + 0.25 * var(--glass-alpha)));
+}
+.an-cell.mv {
+  border-color: rgba(126, 144, 170, calc(0.4 + 0.3 * var(--glass-alpha)));
+  background: rgba(126, 144, 170, calc(0.12 + 0.18 * var(--glass-alpha)));
+}
+.an-cell.pit-t, .an-cell.den-t {
+  font-size: 11px; color: rgba(29, 29, 31, calc(0.25 + 0.3 * var(--stone-ink)));
+}
+.an-legend {
+  font-size: 10px;
+  color: rgba(29, 29, 31, calc(0.25 + 0.3 * var(--stone-ink)));
+}
+/* 小屏适配 */
+@container (max-width: 400px) {
+  .an-board { grid-template-columns: repeat(8, 28px); grid-template-rows: repeat(8, 28px); gap: 1px; }
+  .an-cell { width: 28px; height: 28px; }
+  .an-cell .an-ic { font-size: 13px; }
+  .an-cell .an-nm { font-size: 7px; }
+}
