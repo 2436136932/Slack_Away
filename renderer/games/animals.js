@@ -314,7 +314,7 @@
             const v = board[r][c];
             if (v && typeof v === 'object') cnt[v[0]]++;
           }
-          return { turn, over, winner, pieces: cnt, selected: !!selected, cells: 64 };
+          return { turn, over, winner, pieces: cnt, selected: !!selected, cells: document.querySelectorAll('.an-cell').length };
         };
       },
       destroy() {
