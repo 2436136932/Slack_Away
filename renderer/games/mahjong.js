@@ -101,7 +101,18 @@
         if (ok) return true;
       }
     }
-    // 用 2 张赖子做将
+    // 1 张真牌 + 1 张赖子做将（例如 8筒 + 红中）
+    if (lz >= 1) {
+      for (let p = 0; p < 27; p++) {
+        if (c[p] >= 1) {
+          c[p]--;
+          const ok = decompose(c, lz - 1, need);
+          c[p]++;
+          if (ok) return true;
+        }
+      }
+    }
+    // 2 张赖子做将
     if (lz >= 2 && decompose(c, lz - 2, need)) return true;
     return false;
   }
